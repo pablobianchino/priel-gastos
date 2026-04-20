@@ -250,10 +250,10 @@
         const loadConfig = async () => {
             const { data, error } = await supabaseClient.from('configuracion').select('porcentaje_ari').eq('id', 1).single();
             if (data) { 
-                defaultAriPct = data.porcentaje_ari; 
+                defaultAriPct = parseFloat(data.porcentaje_ari); 
                 document.getElementById('default-ari-pct').value = defaultAriPct; 
-            } else if (error) {
-                console.error("No se pudo cargar la config:", error.message);
+            } else {
+                document.getElementById('default-ari-pct').value = defaultAriPct;
             }
         };
 
@@ -376,8 +376,12 @@
         };
 
         // Modales y Edición
-        const openSettings = () => document.getElementById('settings-modal').style.display = 'block';
+        const openSettings = async () => { 
+            document.getElementById('settings-modal').style.display = 'block'; 
+            await loadConfig(); 
+        };
         const closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
+        
         const openReport = () => { document.getElementById('report-modal').style.display = 'block'; renderChart(); };
         const closeReport = () => document.getElementById('report-modal').style.display = 'none';
 
@@ -417,7 +421,7 @@
         };
 
         const saveDefaultPct = async () => {
-            const pct = document.getElementById('default-ari-pct').value;
+            const pct = parseFloat(document.getElementById('default-ari-pct').value);
             const btn = document.getElementById('btn-save-config');
             btn.textContent = 'Guardando...'; btn.disabled = true;
             
@@ -428,7 +432,7 @@
                 closeSettings(); 
                 showToast("Configuración guardada");
             } else {
-                console.error(error);
+                console.error("Error al guardar config:", error);
                 showToast("Error al guardar config", 'var(--danger)');
             }
             btn.textContent = 'Guardar'; btn.disabled = false;
