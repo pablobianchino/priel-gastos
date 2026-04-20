@@ -23,6 +23,23 @@
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 1100px; margin: auto; padding: 20px; background-color: var(--bg-color); color: var(--text-main); }
         .card { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         
+        /* Pantalla de Carga */
+        #loading-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 3000;
+        }
+        .spinner {
+            width: 80px; height: 80px; border-radius: 50%;
+            object-fit: cover; margin-bottom: 20px;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         /* Login */
         #login-container { max-width: 380px; margin: 100px auto; text-align: center; }
         .error-msg { color: var(--danger); font-size: 0.9em; margin-top: 10px; display: none; }
@@ -36,7 +53,6 @@
         input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1em; background-color: #f9fafb; }
         input:focus { outline: none; border-color: var(--primary); background-color: #fff; }
 
-        /* Botones Rápidos de Monto */
         .quick-amounts { display: flex; gap: 8px; margin-bottom: 12px; }
         .quick-amounts button { background: #e5e7eb; color: var(--text-main); padding: 6px; font-size: 0.8em; width: auto; flex: 1; }
         .quick-amounts button:hover { background: #d1d5db; }
@@ -47,7 +63,6 @@
         .icon-btn { width: 44px; height: 44px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; cursor: pointer; }
         .logout { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); width: auto; padding: 8px 12px; font-size: 0.8em; }
 
-        /* Tabla y Categorías */
         .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; }
         .layout-container { display: flex; gap: 24px; flex-wrap: wrap; }
         .left-panel { flex: 1; min-width: 320px; }
@@ -57,7 +72,6 @@
         th { text-align: left; padding: 12px; color: var(--text-muted); font-size: 0.75em; border-bottom: 2px solid var(--border-color); }
         td { padding: 14px 12px; border-bottom: 1px solid var(--border-color); }
         
-        /* Efecto hover y click para las filas */
         tbody tr { cursor: pointer; transition: background-color 0.2s; }
         tbody tr:hover { background-color: #f0fdf4; }
 
@@ -69,11 +83,9 @@
         .totals { display: flex; justify-content: space-around; background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 10px; }
         .debt-text { font-weight: 600; display: inline-block; margin-top: 4px; }
 
-        /* Toast Notification */
         #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(100px); transition: transform 0.3s; z-index: 2000; }
         #toast.show { transform: translateY(0); }
 
-        /* Modals */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; backdrop-filter: blur(2px); }
         .modal-content { background: white; max-width: 400px; margin: 10vh auto; padding: 24px; border-radius: 16px; }
         
@@ -84,6 +96,11 @@
 <body>
 
     <div id="toast"></div>
+
+    <div id="loading-screen">
+        <img src="logo.jpg" alt="Cargando" class="spinner">
+        <h3 style="color: var(--text-muted);">Ingresando a Control de Gastos Priel</h3>
+    </div>
 
     <div id="login-container" class="card">
         <h2 style="margin-bottom: 15px;">Control de Gastos Priel</h2>
@@ -235,33 +252,71 @@
         };
 
         const logout = () => supabaseClient.auth.signOut();
-        const showApp = () => { document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'block'; initApp(); };
-        const showLogin = () => { document.getElementById('app-container').style.display = 'none'; document.getElementById('login-container').style.display = 'block'; document.getElementById('btn-login').textContent = 'Ingresar'; document.getElementById('btn-login').disabled = false; };
 
-        const showToast = (msg, color = 'var(--success)') => {
-            const t = document.getElementById('toast');
-            t.textContent = msg; t.style.background = color; t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
-        };
+        async function showApp() {
+            document.getElementById('login-container').style.display = 'none';
+            document.getElementById('loading-screen').style.display = 'flex';
+            document.getElementById('app-container').style.display = 'none';
+            
+            // Esperamos a que se carguen todos los datos antes de mostrar la app
+            await initApp();
+            
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('app-container').style.display = 'block';
+        }
 
-        // --- LÓGICA GASTOS ---
-        const initApp = async () => { await loadConfig(); await fetchExpenses(); };
+        function showLogin() {
+            document.getElementById('app-container').style.display = 'none';
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('login-container').style.display = 'block';
+            document.getElementById('email').value = ''; 
+            document.getElementById('password').value = '';
+            document.getElementById('btn-login').textContent = 'Ingresar'; 
+            document.getElementById('btn-login').disabled = false;
+            document.getElementById('login-error').style.display = 'none';
+        }
 
-        const loadConfig = async () => {
-            const { data, error } = await supabaseClient.from('configuracion').select('porcentaje_ari').eq('id', 1).single();
+        function formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        async function initApp() {
+            // Se ejecutan en paralelo para mayor velocidad
+            await Promise.all([loadConfig(), fetchExpenses()]);
+        }
+
+        async function loadConfig() {
+            const { data } = await supabaseClient.from('configuracion').select('porcentaje_ari').eq('id', 1).single();
             if (data) { 
                 defaultAriPct = parseFloat(data.porcentaje_ari); 
                 document.getElementById('default-ari-pct').value = defaultAriPct; 
             } else {
                 document.getElementById('default-ari-pct').value = defaultAriPct;
             }
-        };
+        }
 
-        const fetchExpenses = async () => {
+        async function fetchExpenses() {
             const { data } = await supabaseClient.from('gastos').select('*').order('created_at', { ascending: false });
             expenses = data || [];
             renderList(); calculateBalance();
-        };
+        }
+
+        const form = document.getElementById('expense-form');
+        const list = document.getElementById('expense-list');
+        const balanceDisplay = document.getElementById('balance-display');
+
+        function openSettings() { document.getElementById('settings-modal').style.display = 'block'; loadConfig(); }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+        function openReport() { document.getElementById('report-modal').style.display = 'block'; renderChart(); }
+        function closeReport() { document.getElementById('report-modal').style.display = 'none'; }
+
+        function showToast(msg, color = 'var(--success)') {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.style.background = color; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
 
         const addAmount = (val) => {
             const input = document.getElementById('amount');
@@ -277,7 +332,7 @@
             else if (v.includes('nafta') || v.includes('uber') || v.includes('peaje')) cat.value = 'Auto/Transporte';
         };
 
-        document.getElementById('expense-form').onsubmit = async (e) => {
+        form.onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
             const id = document.getElementById('edit-id').value;
@@ -343,8 +398,9 @@
         const calculateBalance = () => {
             let aPaid = 0, gPaid = 0, aShould = 0;
             expenses.forEach(ex => {
-                if (ex.pagador === 'Ari') aPaid += ex.monto; else gPaid += ex.monto;
-                aShould += Math.round(ex.monto * (ex.ari_pct / 100));
+                const montoTotal = Math.round(ex.monto);
+                if (ex.pagador === 'Ari') aPaid += montoTotal; else gPaid += montoTotal;
+                aShould += Math.round(montoTotal * (ex.ari_pct / 100));
             });
             document.getElementById('total-ari').textContent = `Ari: $${aPaid}`;
             document.getElementById('total-gi').textContent = `Gi: $${gPaid}`;
@@ -375,16 +431,6 @@
             });
         };
 
-        // Modales y Edición
-        const openSettings = async () => { 
-            document.getElementById('settings-modal').style.display = 'block'; 
-            await loadConfig(); 
-        };
-        const closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
-        
-        const openReport = () => { document.getElementById('report-modal').style.display = 'block'; renderChart(); };
-        const closeReport = () => document.getElementById('report-modal').style.display = 'none';
-
         const editExpense = (id) => {
             const ex = expenses.find(x => x.id === id);
             document.getElementById('edit-id').value = ex.id;
@@ -398,7 +444,7 @@
         };
 
         const cancelEdit = () => {
-            document.getElementById('expense-form').reset();
+            form.reset();
             document.getElementById('edit-id').value = '';
             document.getElementById('submit-btn').textContent = "Guardar";
             document.getElementById('cancel-btn').style.display = "none";
@@ -424,15 +470,12 @@
             const pct = parseFloat(document.getElementById('default-ari-pct').value);
             const btn = document.getElementById('btn-save-config');
             btn.textContent = 'Guardando...'; btn.disabled = true;
-            
             const { error } = await supabaseClient.from('configuracion').upsert({ id: 1, porcentaje_ari: pct });
-            
             if (!error) { 
                 defaultAriPct = pct; 
                 closeSettings(); 
                 showToast("Configuración guardada");
             } else {
-                console.error("Error al guardar config:", error);
                 showToast("Error al guardar config", 'var(--danger)');
             }
             btn.textContent = 'Guardar'; btn.disabled = false;
