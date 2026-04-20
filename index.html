@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Gastos Priel</title>
+    <link rel="icon" type="image/jpeg" href="logo.jpg">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        body { font-family: -apple-system, system-ui, sans-serif; max-width: 1100px; margin: auto; padding: 20px; background-color: var(--bg-color); color: var(--text-main); }
+        .card { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        /* Login */
+        #login-container { max-width: 380px; margin: 100px auto; text-align: center; }
+        .error-msg { color: var(--danger); font-size: 0.9em; margin-top: 10px; display: none; }
+        #app-container { display: none; }
+
+        .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 24px; gap: 12px; }
+        .user-badge { background: #e0e7ff; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85em; }
+
+        .app-logo { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 16px auto; border: 3px solid var(--border-color); }
+
+        input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1em; background-color: #f9fafb; }
+        input:focus { outline: none; border-color: var(--primary); background-color: #fff; }
+
+        /* Botones Rápidos de Monto */
+        .quick-amounts { display: flex; gap: 8px; margin-bottom: 12px; }
+        .quick-amounts button { background: #e5e7eb; color: var(--text-main); padding: 6px; font-size: 0.8em; width: auto; flex: 1; }
+        .quick-amounts button:hover { background: #d1d5db; }
+
+        button { background-color: var(--primary); color: white; border: none; padding: 12px 20px; cursor: pointer; font-weight: 600; border-radius: 8px; width: 100%; }
+        button:hover { background-color: var(--primary-hover); }
+        
+        .icon-btn { width: 44px; height: 44px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; cursor: pointer; }
+        .logout { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); width: auto; padding: 8px 12px; font-size: 0.8em; }
+
+        /* Tabla y Categorías */
+        .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; }
+        .layout-container { display: flex; gap: 24px; flex-wrap: wrap; }
+        .left-panel { flex: 1; min-width: 320px; }
+        .right-panel { flex: 2; min-width: 450px; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; color: var(--text-muted); font-size: 0.75em; border-bottom: 2px solid var(--border-color); }
+        td { padding: 14px 12px; border-bottom: 1px solid var(--border-color); }
+        
+        /* Efecto hover y click para las filas */
+        tbody tr { cursor: pointer; transition: background-color 0.2s; }
+        tbody tr:hover { background-color: #f0fdf4; }
+
+        .action-btn { width: auto; padding: 6px 10px; font-size: 1.1em; border-radius: 6px; background-color: transparent;}
+        .delete { color: var(--danger); }
+        .delete:hover { background-color: #fee2e2; }
+        
+        .balance { font-size: 2em; font-weight: 800; text-align: center; margin: 15px 0; }
+        .totals { display: flex; justify-content: space-around; background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 10px; }
+        .debt-text { font-weight: 600; display: inline-block; margin-top: 4px; }
+
+        /* Toast Notification */
+        #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(100px); transition: transform 0.3s; z-index: 2000; }
+        #toast.show { transform: translateY(0); }
+
+        /* Modals */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; backdrop-filter: blur(2px); }
+        .modal-content { background: white; max-width: 400px; margin: 10vh auto; padding: 24px; border-radius: 16px; }
+        
+        .filter-group { display: flex; gap: 8px; align-items: center; background: white; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .filter-group select { margin: 0; padding: 5px; font-size: 0.85em; width: auto; border: none; background: transparent; }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div id="login-container" class="card">
+        <h2 style="margin-bottom: 15px;">Control de Gastos Priel</h2>
+        <img src="logo.jpg" alt="Logo" class="app-logo">
+        <form onsubmit="event.preventDefault(); window.ejecutarLogin();">
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Contraseña" required>
+            <button type="submit" id="btn-login">Ingresar</button>
+            <p id="login-error" class="error-msg"></p>
+        </form>
+    </div>
+
+    <div id="app-container">
+        <div class="header">
+            <span class="user-badge" id="logged-user-display"></span>
+            <button class="icon-btn" onclick="openReport()">📊</button>
+            <button class="icon-btn" onclick="openSettings()">⚙️</button>
+            <button class="logout" onclick="logout()">Salir</button>
+        </div>
+
+        <div class="card" style="text-align: center;">
+            <h2 style="margin-bottom: 15px;">Control de Gastos Priel</h2>
+            <img src="logo.jpg" alt="Logo" class="app-logo">
+            <h3 style="margin: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase; letter-spacing: 1px;">Balance Actual</h3>
+            <div id="balance-display" class="balance">$0</div>
+            <div class="totals">
+                <span id="total-ari">Ari: $0</span>
+                <span id="total-gi">Gi: $0</span>
+            </div>
+            <button class="settle" onclick="settleUp()">Liquidar Cuentas</button>
+        </div>
+
+        <div class="layout-container">
+            <div class="left-panel">
+                <div class="card">
+                    <h3 id="form-title">Nuevo Gasto</h3>
+                    <form id="expense-form">
+                        <input type="hidden" id="edit-id">
+                        <label>Descripción</label>
+                        <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value)">
+                        
+                        <label>Monto</label>
+                        <input type="number" id="amount" placeholder="0" required>
+                        <div class="quick-amounts">
+                            <button type="button" onclick="addAmount(5000)">+5k</button>
+                            <button type="button" onclick="addAmount(10000)">+10k</button>
+                            <button type="button" onclick="addAmount(20000)">+20k</button>
+                        </div>
+
+                        <label>Categoría</label>
+                        <select id="category">
+                            <option value="Varios">📂 Varios</option>
+                            <option value="Supermercado">🛒 Supermercado</option>
+                            <option value="Servicios">💡 Servicios</option>
+                            <option value="Salidas">🍕 Salidas</option>
+                            <option value="Auto/Transporte">🚗 Auto/Transporte</option>
+                            <option value="Hogar">🏠 Hogar</option>
+                        </select>
+
+                        <label>Pagó</label>
+                        <select id="payer">
+                            <option value="Ari">Ari</option>
+                            <option value="Gi">Gi</option>
+                        </select>
+
+                        <button type="submit" id="submit-btn">Guardar</button>
+                        <button type="button" id="cancel-btn" style="display:none; background:#9ca3af; margin-top:8px;" onclick="cancelEdit()">Cancelar Edición</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card right-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3>Historial</h3>
+                    <div class="filter-group">
+                        <span>Mes:</span>
+                        <select id="filter-month" onchange="renderList()">
+                            <option value="todos">Todos</option>
+                            <option value="0">Enero</option><option value="1">Febrero</option>
+                            <option value="2">Marzo</option><option value="3">Abril</option>
+                            <option value="4">Mayo</option><option value="5">Junio</option>
+                            <option value="6">Julio</option><option value="7">Agosto</option>
+                            <option value="8">Septiembre</option><option value="9">Octubre</option>
+                            <option value="10">Noviembre</option><option value="11">Diciembre</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>Gasto</th><th>Monto</th><th>Distribución</th><th></th></tr></thead>
+                        <tbody id="expense-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Ajustes</h3>
+            <label>Porcentaje Ari (%)</label>
+            <input type="number" id="default-ari-pct">
+            <button id="btn-save-config" onclick="saveDefaultPct()">Guardar</button>
+            <button onclick="closeSettings()" style="background:transparent; color:var(--text-muted); margin-top:10px;">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="report-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width:500px;">
+            <h3>Análisis de Gastos</h3>
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <button onclick="renderChart('pagador')" style="font-size:0.8em;">Por Persona</button>
+                <button onclick="renderChart('categoria')" style="font-size:0.8em; background:#6366f1;">Por Categoría</button>
+            </div>
+            <canvas id="expenseChart"></canvas>
+            <button onclick="closeReport()" style="background:transparent; color:var(--text-muted); margin-top:15px;">Cerrar</button>
+        </div>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://ruefngsgxvbhxkgiddnn.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZuZ3NneHZiaHhrZ2lkZG5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzIxMzksImV4cCI6MjA5MjAwODEzOX0.BnhJNgpR83qcJSyveAZatI_WGhfJQjrlmr81ymf1SMc';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        let defaultAriPct = 50; 
+        let expenses = [];
+        let chartInstance = null;
+
+        // --- AUTH & UI ---
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (session) {
+                document.getElementById('logged-user-display').textContent = session.user.email;
+                showApp();
+            } else { showLogin(); }
+        });
+
+        window.ejecutarLogin = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('btn-login');
+            btn.textContent = 'Ingresando...'; btn.disabled = true;
+
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) { 
+                const err = document.getElementById('login-error');
+                err.textContent = "Error: " + error.message; err.style.display = 'block';
+                btn.textContent = 'Ingresar'; btn.disabled = false;
+            }
+        };
+
+        const logout = () => supabaseClient.auth.signOut();
+        const showApp = () => { document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'block'; initApp(); };
+        const showLogin = () => { document.getElementById('app-container').style.display = 'none'; document.getElementById('login-container').style.display = 'block'; document.getElementById('btn-login').textContent = 'Ingresar'; document.getElementById('btn-login').disabled = false; };
+
+        const showToast = (msg, color = 'var(--success)') => {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.style.background = color; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        };
+
+        // --- LÓGICA GASTOS ---
+        const initApp = async () => { await loadConfig(); await fetchExpenses(); };
+
+        const loadConfig = async () => {
+            const { data, error } = await supabaseClient.from('configuracion').select('porcentaje_ari').eq('id', 1).single();
+            if (data) { 
+                defaultAriPct = data.porcentaje_ari; 
+                document.getElementById('default-ari-pct').value = defaultAriPct; 
+            } else if (error) {
+                console.error("No se pudo cargar la config:", error.message);
+            }
+        };
+
+        const fetchExpenses = async () => {
+            const { data } = await supabaseClient.from('gastos').select('*').order('created_at', { ascending: false });
+            expenses = data || [];
+            renderList(); calculateBalance();
+        };
+
+        const addAmount = (val) => {
+            const input = document.getElementById('amount');
+            input.value = (parseInt(input.value) || 0) + val;
+        };
+
+        const smartSuggest = (val) => {
+            const v = val.toLowerCase();
+            const cat = document.getElementById('category');
+            if (v.includes('super') || v.includes('coto') || v.includes('carrefour') || v.includes('dia')) cat.value = 'Supermercado';
+            else if (v.includes('luz') || v.includes('agua') || v.includes('gas') || v.includes('internet')) cat.value = 'Servicios';
+            else if (v.includes('pizza') || v.includes('cine') || v.includes('cerveza') || v.includes('restaurante')) cat.value = 'Salidas';
+            else if (v.includes('nafta') || v.includes('uber') || v.includes('peaje')) cat.value = 'Auto/Transporte';
+        };
+
+        document.getElementById('expense-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const id = document.getElementById('edit-id').value;
+            const data = {
+                descripcion: document.getElementById('desc').value,
+                monto: Math.round(document.getElementById('amount').value),
+                pagador: document.getElementById('payer').value,
+                categoria: document.getElementById('category').value,
+                ari_pct: id ? expenses.find(x => x.id === id).ari_pct : defaultAriPct
+            };
+
+            btn.disabled = true;
+            if (id) await supabaseClient.from('gastos').update(data).eq('id', id);
+            else await supabaseClient.from('gastos').insert([data]);
+
+            showToast(id ? "Gasto actualizado" : "Gasto guardado");
+            await fetchExpenses();
+            cancelEdit();
+            btn.disabled = false;
+        };
+
+        const renderList = () => {
+            const month = document.getElementById('filter-month').value;
+            const list = document.getElementById('expense-list');
+            list.innerHTML = '';
+
+            expenses.filter(ex => {
+                if (month === 'todos') return true;
+                return new Date(ex.created_at).getMonth().toString() === month;
+            }).forEach(ex => {
+                const ariS = Math.round(ex.monto * (ex.ari_pct / 100));
+                const giS = ex.monto - ariS;
+                const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
+                
+                let debtText = '';
+                if (ex.pagador === 'Ari') debtText = `<span class="debt-text" style="color: var(--success);">Gi debe a Ari: $${giS}</span>`;
+                else debtText = `<span class="debt-text" style="color: var(--danger);">Ari debe a Gi: $${ariS}</span>`;
+
+                if ((ex.pagador === 'Ari' && ex.ari_pct === 100) || (ex.pagador === 'Gi' && ex.ari_pct === 0)) debtText = `<span class="debt-text" style="color: var(--text-muted);">Sin deuda generada</span>`;
+
+                const tr = document.createElement('tr');
+                tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-size:0.7em; color:var(--text-muted)">${date}</div>
+                        <div style="font-weight:600">${ex.descripcion}</div>
+                        <span class="badge-cat">${ex.categoria}</span>
+                    </td>
+                    <td style="font-weight:700">$${ex.monto}</td>
+                    <td style="font-size:0.9em; color:var(--text-muted)">
+                        Ari: $${ariS} (${ex.ari_pct}%)<br>
+                        Gi: $${giS} (${100 - ex.ari_pct}%)<br>
+                        ${debtText}
+                    </td>
+                    <td style="text-align: right; vertical-align: middle;">
+                        <button type="button" class="action-btn delete" onclick="deleteExpense('${ex.id}')" title="Borrar">🗑️</button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        };
+
+        const calculateBalance = () => {
+            let aPaid = 0, gPaid = 0, aShould = 0;
+            expenses.forEach(ex => {
+                if (ex.pagador === 'Ari') aPaid += ex.monto; else gPaid += ex.monto;
+                aShould += Math.round(ex.monto * (ex.ari_pct / 100));
+            });
+            document.getElementById('total-ari').textContent = `Ari: $${aPaid}`;
+            document.getElementById('total-gi').textContent = `Gi: $${gPaid}`;
+            const bal = aPaid - aShould;
+            const display = document.getElementById('balance-display');
+            if (bal > 0) { display.textContent = `Gi debe a Ari: $${bal}`; display.style.color = 'var(--success)'; }
+            else if (bal < 0) { display.textContent = `Ari debe a Gi: $${Math.abs(bal)}`; display.style.color = 'var(--danger)'; }
+            else { display.textContent = `Saldados $0`; display.style.color = 'var(--text-main)'; }
+        };
+
+        const renderChart = (tipo = 'pagador') => {
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            const dataMap = {};
+            expenses.forEach(ex => {
+                const key = ex[tipo];
+                dataMap[key] = (dataMap[key] || 0) + ex.monto;
+            });
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(dataMap),
+                    datasets: [{ data: Object.values(dataMap), backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'] }]
+                },
+                options: { plugins: { legend: { position: 'bottom' } } }
+            });
+        };
+
+        // Modales y Edición
+        const openSettings = () => document.getElementById('settings-modal').style.display = 'block';
+        const closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
+        const openReport = () => { document.getElementById('report-modal').style.display = 'block'; renderChart(); };
+        const closeReport = () => document.getElementById('report-modal').style.display = 'none';
+
+        const editExpense = (id) => {
+            const ex = expenses.find(x => x.id === id);
+            document.getElementById('edit-id').value = ex.id;
+            document.getElementById('desc').value = ex.descripcion;
+            document.getElementById('amount').value = ex.monto;
+            document.getElementById('payer').value = ex.pagador;
+            document.getElementById('category').value = ex.categoria;
+            document.getElementById('submit-btn').textContent = "Actualizar";
+            document.getElementById('cancel-btn').style.display = "block";
+            window.scrollTo(0,0);
+        };
+
+        const cancelEdit = () => {
+            document.getElementById('expense-form').reset();
+            document.getElementById('edit-id').value = '';
+            document.getElementById('submit-btn').textContent = "Guardar";
+            document.getElementById('cancel-btn').style.display = "none";
+        };
+
+        const deleteExpense = async (id) => {
+            if (confirm("¿Borrar gasto?")) {
+                await supabaseClient.from('gastos').delete().eq('id', id);
+                showToast("Gasto eliminado", 'var(--danger)');
+                fetchExpenses();
+            }
+        };
+
+        const settleUp = async () => {
+            if (expenses.length && confirm("¿Liquidar todas las deudas actuales?")) {
+                await supabaseClient.from('gastos').delete().not('id', 'is', null);
+                showToast("Cuentas liquidadas");
+                fetchExpenses();
+            }
+        };
+
+        const saveDefaultPct = async () => {
+            const pct = document.getElementById('default-ari-pct').value;
+            const btn = document.getElementById('btn-save-config');
+            btn.textContent = 'Guardando...'; btn.disabled = true;
+            
+            const { error } = await supabaseClient.from('configuracion').upsert({ id: 1, porcentaje_ari: pct });
+            
+            if (!error) { 
+                defaultAriPct = pct; 
+                closeSettings(); 
+                showToast("Configuración guardada");
+            } else {
+                console.error(error);
+                showToast("Error al guardar config", 'var(--danger)');
+            }
+            btn.textContent = 'Guardar'; btn.disabled = false;
+        };
+    </script>
+</body>
+</html>
