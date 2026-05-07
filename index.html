@@ -23,21 +23,9 @@
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 1100px; margin: auto; padding: 20px; background-color: var(--bg-color); color: var(--text-main); }
         .card { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         
-        #loading-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; display: none; flex-direction: column;
-            align-items: center; justify-content: center; z-index: 3000;
-        }
-        .spinner {
-            width: 80px; height: 80px; border-radius: 50%;
-            object-fit: cover; margin-bottom: 20px;
-            animation: pulse 1.5s infinite ease-in-out;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
-        }
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
+        .spinner { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; animation: pulse 1.5s infinite ease-in-out; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
 
         #login-container { max-width: 380px; margin: 100px auto; text-align: center; }
         .error-msg { color: var(--danger); font-size: 0.9em; margin-top: 10px; display: none; }
@@ -61,7 +49,13 @@
         .icon-btn { width: 44px; height: 44px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; cursor: pointer; }
         .logout { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); width: auto; padding: 8px 12px; font-size: 0.8em; }
 
-        .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; }
+        /* Etiquetas Multi-selección */
+        .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .tag-pill { padding: 8px 12px; background: #f3f4f6; border-radius: 20px; font-size: 0.85em; cursor: pointer; border: 1px solid transparent; user-select: none;}
+        .tag-pill.selected { background: #e0e7ff; color: var(--primary); border-color: var(--primary); font-weight: bold; }
+        
+        .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; margin-right: 4px;}
+        
         .layout-container { display: flex; gap: 24px; flex-wrap: wrap; }
         .left-panel { flex: 1; min-width: 320px; }
         .right-panel { flex: 2; min-width: 450px; }
@@ -85,10 +79,12 @@
         #toast.show { transform: translateY(0); }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; backdrop-filter: blur(2px); }
-        .modal-content { background: white; max-width: 400px; margin: 10vh auto; padding: 24px; border-radius: 16px; }
+        .modal-content { background: white; max-width: 400px; margin: 10vh auto; padding: 24px; border-radius: 16px; max-height: 90vh; overflow-y: auto;}
         
         .filter-group { display: flex; gap: 8px; align-items: center; background: white; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
         .filter-group select { margin: 0; padding: 5px; font-size: 0.85em; width: auto; border: none; background: transparent; }
+        
+        .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f9fafb; margin-bottom: 4px; border-radius: 6px; }
     </style>
 </head>
 <body>
@@ -148,15 +144,8 @@
                             <button type="button" onclick="addAmount(20000)">+20k</button>
                         </div>
 
-                        <label>Categoría</label>
-                        <select id="category">
-                            <option value="Varios">📂 Varios</option>
-                            <option value="Supermercado">🛒 Supermercado</option>
-                            <option value="Servicios">💡 Servicios</option>
-                            <option value="Salidas">🍕 Salidas</option>
-                            <option value="Auto/Transporte">🚗 Auto/Transporte</option>
-                            <option value="Hogar">🏠 Hogar</option>
-                        </select>
+                        <label>Categorías (Puedes elegir varias)</label>
+                        <div id="category-pills" class="tags-container"></div>
 
                         <label>Pagó</label>
                         <select id="payer">
@@ -198,10 +187,19 @@
 
     <div id="settings-modal" class="modal-overlay">
         <div class="modal-content">
-            <h3>Ajustes</h3>
-            <label>Porcentaje Ari (%)</label>
-            <input type="number" id="default-ari-pct">
-            <button id="btn-save-config" onclick="saveDefaultPct()">Guardar</button>
+            <h3>Ajustes Generales</h3>
+            <label>Porcentaje a cargo de Ari (%)</label>
+            <input type="number" id="default-ari-pct" style="margin-bottom: 20px;">
+            
+            <h3 style="margin-bottom: 10px;">Gestionar Categorías</h3>
+            <div id="settings-cat-list" style="margin-bottom: 15px;"></div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+                <input type="text" id="new-category" placeholder="Nueva categoría..." style="margin: 0;">
+                <button type="button" onclick="addCategory()" style="width: auto;">Agregar</button>
+            </div>
+
+            <button id="btn-save-config" onclick="saveDefaultPct()">Guardar Todo</button>
             <button onclick="closeSettings()" style="background:transparent; color:var(--text-muted); margin-top:10px;">Cerrar</button>
         </div>
     </div>
@@ -227,16 +225,14 @@
         let expenses = [];
         let chartInstance = null;
         let currentUserAlias = 'Ari';
+        
+        let availableCategories = ["Supermercado", "Servicios", "Salidas", "Auto/Transporte", "Hogar", "Varios"];
+        let selectedCategories = [];
 
         supabaseClient.auth.onAuthStateChange((event, session) => {
             if (session) {
                 const email = session.user.email.toLowerCase();
-                if (email.includes('pablo') || email.includes('ari') || email.includes('bianchino')) {
-                    currentUserAlias = 'Ari';
-                } else {
-                    currentUserAlias = 'Gi';
-                }
-                
+                currentUserAlias = (email.includes('pablo') || email.includes('ari') || email.includes('bianchino')) ? 'Ari' : 'Gi';
                 document.getElementById('logged-user-display').textContent = session.user.email;
                 document.getElementById('payer').value = currentUserAlias;
                 showApp();
@@ -253,8 +249,8 @@
 
             const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) { 
-                const err = document.getElementById('login-error');
-                err.textContent = "Error: " + error.message; err.style.display = 'block';
+                document.getElementById('login-error').textContent = "Error: " + error.message; 
+                document.getElementById('login-error').style.display = 'block';
                 btn.textContent = 'Ingresar'; btn.disabled = false;
             }
         };
@@ -265,9 +261,7 @@
             document.getElementById('login-container').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'flex';
             document.getElementById('app-container').style.display = 'none';
-            
             await initApp();
-            
             document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'block';
         }
@@ -276,17 +270,8 @@
             document.getElementById('app-container').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('login-container').style.display = 'block';
-            document.getElementById('email').value = ''; 
-            document.getElementById('password').value = '';
             document.getElementById('btn-login').textContent = 'Ingresar'; 
             document.getElementById('btn-login').disabled = false;
-            document.getElementById('login-error').style.display = 'none';
-        }
-
-        function formatDate(isoString) {
-            if (!isoString) return '';
-            const date = new Date(isoString);
-            return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
         }
 
         async function initApp() {
@@ -294,13 +279,13 @@
         }
 
         async function loadConfig() {
-            const { data } = await supabaseClient.from('configuracion').select('porcentaje_ari').eq('id', 1).single();
+            const { data } = await supabaseClient.from('configuracion').select('*').eq('id', 1).single();
             if (data) { 
                 defaultAriPct = parseFloat(data.porcentaje_ari); 
                 document.getElementById('default-ari-pct').value = defaultAriPct; 
-            } else {
-                document.getElementById('default-ari-pct').value = defaultAriPct;
+                if (data.categorias) availableCategories = data.categorias;
             }
+            renderCategoryPills();
         }
 
         async function fetchExpenses() {
@@ -309,15 +294,69 @@
             renderList(); calculateBalance();
         }
 
-        const form = document.getElementById('expense-form');
-        const list = document.getElementById('expense-list');
-        const balanceDisplay = document.getElementById('balance-display');
+        // --- SISTEMA DE CATEGORÍAS ---
+        function renderCategoryPills() {
+            const container = document.getElementById('category-pills');
+            container.innerHTML = '';
+            availableCategories.forEach(cat => {
+                const pill = document.createElement('div');
+                pill.className = `tag-pill ${selectedCategories.includes(cat) ? 'selected' : ''}`;
+                pill.textContent = cat;
+                pill.onclick = () => toggleCategory(cat);
+                container.appendChild(pill);
+            });
+        }
 
-        function openSettings() { document.getElementById('settings-modal').style.display = 'block'; loadConfig(); }
+        function toggleCategory(cat) {
+            if (selectedCategories.includes(cat)) {
+                selectedCategories = selectedCategories.filter(c => c !== cat);
+            } else {
+                selectedCategories.push(cat);
+            }
+            renderCategoryPills();
+        }
+
+        function renderSettingsCategories() {
+            const container = document.getElementById('settings-cat-list');
+            container.innerHTML = '';
+            availableCategories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'setting-item';
+                div.innerHTML = `
+                    <span>${cat}</span>
+                    <button type="button" onclick="removeCategory('${cat}')" style="width:auto; padding:4px 10px; background:var(--danger); font-size:0.8em;">Borrar</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addCategory() {
+            const input = document.getElementById('new-category');
+            const val = input.value.trim();
+            if (val && !availableCategories.includes(val)) {
+                availableCategories.push(val);
+                input.value = '';
+                renderSettingsCategories();
+                renderCategoryPills();
+            }
+        }
+
+        function removeCategory(cat) {
+            if (confirm(`¿Borrar categoría "${cat}"?`)) {
+                availableCategories = availableCategories.filter(c => c !== cat);
+                selectedCategories = selectedCategories.filter(c => c !== cat);
+                renderSettingsCategories();
+                renderCategoryPills();
+            }
+        }
+
+        function openSettings() { 
+            document.getElementById('settings-modal').style.display = 'block'; 
+            renderSettingsCategories();
+        }
         function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
         function openReport() { document.getElementById('report-modal').style.display = 'block'; renderChart(); }
         function closeReport() { document.getElementById('report-modal').style.display = 'none'; }
-
         function showToast(msg, color = 'var(--success)') {
             const t = document.getElementById('toast');
             t.textContent = msg; t.style.background = color; t.classList.add('show');
@@ -331,22 +370,28 @@
 
         const smartSuggest = (val) => {
             const v = val.toLowerCase();
-            const cat = document.getElementById('category');
-            if (v.includes('super') || v.includes('coto') || v.includes('carrefour') || v.includes('dia')) cat.value = 'Supermercado';
-            else if (v.includes('luz') || v.includes('agua') || v.includes('gas') || v.includes('internet')) cat.value = 'Servicios';
-            else if (v.includes('pizza') || v.includes('cine') || v.includes('cerveza') || v.includes('restaurante')) cat.value = 'Salidas';
-            else if (v.includes('nafta') || v.includes('uber') || v.includes('peaje')) cat.value = 'Auto/Transporte';
+            selectedCategories = [];
+            if (v.includes('super') || v.includes('coto') || v.includes('dia')) selectedCategories.push('Supermercado');
+            if (v.includes('luz') || v.includes('agua') || v.includes('gas') || v.includes('internet')) selectedCategories.push('Servicios');
+            if (v.includes('pizza') || v.includes('cine') || v.includes('cerveza')) selectedCategories.push('Salidas');
+            if (v.includes('nafta') || v.includes('uber') || v.includes('peaje')) selectedCategories.push('Auto/Transporte');
+            renderCategoryPills();
         };
 
-        form.onsubmit = async (e) => {
+        document.getElementById('expense-form').onsubmit = async (e) => {
             e.preventDefault();
+            if (selectedCategories.length === 0) {
+                showToast("Debes seleccionar al menos una categoría", 'var(--danger)');
+                return;
+            }
+
             const btn = document.getElementById('submit-btn');
             const id = document.getElementById('edit-id').value;
             const data = {
                 descripcion: document.getElementById('desc').value,
                 monto: Math.round(document.getElementById('amount').value),
                 pagador: document.getElementById('payer').value,
-                categoria: document.getElementById('category').value,
+                categoria: selectedCategories.join(', '),
                 ari_pct: id ? expenses.find(x => x.id === id).ari_pct : defaultAriPct
             };
 
@@ -384,13 +429,15 @@
                     debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: $${ariS}</span>`;
                 }
 
+                const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
+
                 const tr = document.createElement('tr');
                 tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
                 tr.innerHTML = `
                     <td>
                         <div style="font-size:0.7em; color:var(--text-muted)">${date}</div>
                         <div style="font-weight:600">${ex.descripcion}</div>
-                        <span class="badge-cat">${ex.categoria}</span>
+                        ${catBadges}
                     </td>
                     <td style="font-weight:700">$${ex.monto}</td>
                     <td style="font-size:0.9em; color:var(--text-muted)">
@@ -436,15 +483,20 @@
 
             const dataMap = {};
             expenses.forEach(ex => {
-                const key = ex[tipo];
-                dataMap[key] = (dataMap[key] || 0) + ex.monto;
+                if (tipo === 'categoria') {
+                    const cats = ex.categoria.split(', ');
+                    const splitAmount = ex.monto / cats.length; // Divide el monto si hay varias etiquetas
+                    cats.forEach(c => dataMap[c] = (dataMap[c] || 0) + splitAmount);
+                } else {
+                    dataMap[ex[tipo]] = (dataMap[ex[tipo]] || 0) + ex.monto;
+                }
             });
 
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(dataMap),
-                    datasets: [{ data: Object.values(dataMap), backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'] }]
+                    datasets: [{ data: Object.values(dataMap), backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#8b5cf6'] }]
                 },
                 options: { plugins: { legend: { position: 'bottom' } } }
             });
@@ -456,16 +508,21 @@
             document.getElementById('desc').value = ex.descripcion;
             document.getElementById('amount').value = ex.monto;
             document.getElementById('payer').value = ex.pagador;
-            document.getElementById('category').value = ex.categoria;
+            
+            selectedCategories = ex.categoria.split(', ');
+            renderCategoryPills();
+
             document.getElementById('submit-btn').textContent = "Actualizar";
             document.getElementById('cancel-btn').style.display = "block";
             window.scrollTo(0,0);
         };
 
         const cancelEdit = () => {
-            form.reset();
+            document.getElementById('expense-form').reset();
             document.getElementById('payer').value = currentUserAlias;
             document.getElementById('edit-id').value = '';
+            selectedCategories = [];
+            renderCategoryPills();
             document.getElementById('submit-btn').textContent = "Guardar";
             document.getElementById('cancel-btn').style.display = "none";
         };
@@ -490,7 +547,11 @@
             const pct = parseFloat(document.getElementById('default-ari-pct').value);
             const btn = document.getElementById('btn-save-config');
             btn.textContent = 'Guardando...'; btn.disabled = true;
-            const { error } = await supabaseClient.from('configuracion').upsert({ id: 1, porcentaje_ari: pct });
+            const { error } = await supabaseClient.from('configuracion').upsert({ 
+                id: 1, 
+                porcentaje_ari: pct,
+                categorias: availableCategories 
+            });
             if (!error) { 
                 defaultAriPct = pct; 
                 closeSettings(); 
@@ -498,7 +559,7 @@
             } else {
                 showToast("Error al guardar config", 'var(--danger)');
             }
-            btn.textContent = 'Guardar'; btn.disabled = false;
+            btn.textContent = 'Guardar Todo'; btn.disabled = false;
         };
     </script>
 </body>
