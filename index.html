@@ -406,76 +406,81 @@
         };
 
         const renderList = () => {
-            const month = document.getElementById('filter-month').value;
-            const list = document.getElementById('expense-list');
-            list.innerHTML = '';
+    const month = document.getElementById('filter-month').value;
+    const list = document.getElementById('expense-list');
+    list.innerHTML = '';
 
-            expenses.filter(ex => {
-                if (month === 'todos') return true;
-                return new Date(ex.created_at).getMonth().toString() === month;
-            }).forEach(ex => {
-                const ariS = Math.round(ex.monto * (ex.ari_pct / 100));
-                const giS = ex.monto - ariS;
-                const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
-                
-                let debtText = '';
-                if ((ex.pagador === 'Ari' && ex.ari_pct === 100) || (ex.pagador === 'Gi' && ex.ari_pct === 0)) {
-                    debtText = `<span class="debt-text" style="color: var(--text-muted);">Sin deuda generada</span>`;
-                } else if (ex.pagador === 'Ari') {
-                    const color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)';
-                    debtText = `<span class="debt-text" style="color: ${color};">Gi debe a Ari: $${giS}</span>`;
-                } else {
-                    const color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)';
-                    debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: $${ariS}</span>`;
-                }
+    expenses.filter(ex => {
+        if (month === 'todos') return true;
+        return new Date(ex.created_at).getMonth().toString() === month;
+    }).forEach(ex => {
+        const ariS = Math.round(ex.monto * (ex.ari_pct / 100));
+        const giS = ex.monto - ariS;
+        const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
+        
+        let debtText = '';
+        if (ex.liquidado) {
+            debtText = `<span class="debt-text" style="color: var(--text-muted); background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">Liquidado</span>`;
+        } else if ((ex.pagador === 'Ari' && ex.ari_pct === 100) || (ex.pagador === 'Gi' && ex.ari_pct === 0)) {
+            debtText = `<span class="debt-text" style="color: var(--text-muted);">Sin deuda generada</span>`;
+        } else if (ex.pagador === 'Ari') {
+            const color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)';
+            debtText = `<span class="debt-text" style="color: ${color};">Gi debe a Ari: $${giS}</span>`;
+        } else {
+            const color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)';
+            debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: $${ariS}</span>`;
+        }
 
-                const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
+        const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
 
-                const tr = document.createElement('tr');
-                tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
-                tr.innerHTML = `
-                    <td>
-                        <div style="font-size:0.7em; color:var(--text-muted)">${date}</div>
-                        <div style="font-weight:600">${ex.descripcion}</div>
-                        ${catBadges}
-                    </td>
-                    <td style="font-weight:700">$${ex.monto}</td>
-                    <td style="font-size:0.9em; color:var(--text-muted)">
-                        Ari: $${ariS} (${ex.ari_pct}%)<br>
-                        Gi: $${giS} (${100 - ex.ari_pct}%)<br>
-                        ${debtText}
-                    </td>
-                    <td style="text-align: right; vertical-align: middle;">
-                        <button type="button" class="action-btn delete" onclick="deleteExpense('${ex.id}')" title="Borrar">🗑️</button>
-                    </td>
-                `;
-                list.appendChild(tr);
-            });
-        };
+        const tr = document.createElement('tr');
+        tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
+        tr.innerHTML = `
+            <td>
+                <div style="font-size:0.7em; color:var(--text-muted)">${date}</div>
+                <div style="font-weight:600">${ex.descripcion}</div>
+                ${catBadges}
+            </td>
+            <td style="font-weight:700">$${ex.monto}</td>
+            <td style="font-size:0.9em; color:var(--text-muted)">
+                Ari: $${ariS} (${ex.ari_pct}%)<br>
+                Gi: $${giS} (${100 - ex.ari_pct}%)<br>
+                ${debtText}
+            </td>
+            <td style="text-align: right; vertical-align: middle;">
+                <button type="button" class="action-btn delete" onclick="deleteExpense('${ex.id}')" title="Borrar">🗑️</button>
+            </td>
+        `;
+        list.appendChild(tr);
+    });
+};
 
         const calculateBalance = () => {
-            let aPaid = 0, gPaid = 0, aShould = 0;
-            expenses.forEach(ex => {
-                const montoTotal = Math.round(ex.monto);
-                if (ex.pagador === 'Ari') aPaid += montoTotal; else gPaid += montoTotal;
-                aShould += Math.round(montoTotal * (ex.ari_pct / 100));
-            });
-            document.getElementById('total-ari').textContent = `Ari: $${aPaid}`;
-            document.getElementById('total-gi').textContent = `Gi: $${gPaid}`;
-            const bal = aPaid - aShould;
-            const display = document.getElementById('balance-display');
-            
-            if (bal > 0) { 
-                display.textContent = `Gi debe a Ari: $${bal}`; 
-                display.style.color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)'; 
-            } else if (bal < 0) { 
-                display.textContent = `Ari debe a Gi: $${Math.abs(bal)}`; 
-                display.style.color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)'; 
-            } else { 
-                display.textContent = `Saldados $0`; 
-                display.style.color = 'var(--text-main)'; 
-            }
-        };
+    let aPaid = 0, gPaid = 0, aShould = 0;
+    expenses.forEach(ex => {
+        // Ignorar este gasto en la suma si ya fue liquidado
+        if (ex.liquidado) return; 
+
+        const montoTotal = Math.round(ex.monto);
+        if (ex.pagador === 'Ari') aPaid += montoTotal; else gPaid += montoTotal;
+        aShould += Math.round(montoTotal * (ex.ari_pct / 100));
+    });
+    document.getElementById('total-ari').textContent = `Ari: $${aPaid}`;
+    document.getElementById('total-gi').textContent = `Gi: $${gPaid}`;
+    const bal = aPaid - aShould;
+    const display = document.getElementById('balance-display');
+    
+    if (bal > 0) { 
+        display.textContent = `Gi debe a Ari: $${bal}`; 
+        display.style.color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)'; 
+    } else if (bal < 0) { 
+        display.textContent = `Ari debe a Gi: $${Math.abs(bal)}`; 
+        display.style.color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)'; 
+    } else { 
+        display.textContent = `Saldados $0`; 
+        display.style.color = 'var(--text-main)'; 
+    }
+};
 
         const renderChart = (tipo = 'pagador') => {
             const ctx = document.getElementById('expenseChart').getContext('2d');
@@ -535,13 +540,23 @@
             }
         };
 
-        const settleUp = async () => {
-            if (expenses.length && confirm("¿Liquidar todas las deudas actuales?")) {
-                await supabaseClient.from('gastos').delete().not('id', 'is', null);
-                showToast("Cuentas liquidadas");
-                fetchExpenses();
-            }
-        };
+       const settleUp = async () => {
+    if (expenses.length && confirm("¿Liquidar todas las deudas actuales?")) {
+        // En lugar de borrar, cambia el estado a liquidado = true
+        const { error } = await supabaseClient
+            .from('gastos')
+            .update({ liquidado: true })
+            .neq('liquidado', true); // Actualiza los que no estén liquidados
+
+        if (error) {
+            showToast("Error al liquidar", 'var(--danger)');
+            console.error(error);
+        } else {
+            showToast("Cuentas liquidadas");
+            fetchExpenses();
+        }
+    }
+};
 
         const saveDefaultPct = async () => {
             const pct = parseFloat(document.getElementById('default-ari-pct').value);
