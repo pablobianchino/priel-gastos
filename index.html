@@ -43,7 +43,7 @@
 
         #main-content { flex: 1; padding: 20px; max-width: 1200px; margin: auto; overflow-x: hidden; }
         
-        .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 24px; gap: 12px; }
+        .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 15px; gap: 12px; }
         .hamburger-btn { display: none; background: none; border: none; font-size: 1.8em; cursor: pointer; color: var(--text-main); width: auto; padding: 0; margin-right: auto; }
         
         .user-badge { background: #e0e7ff; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85em; }
@@ -91,8 +91,8 @@
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; backdrop-filter: blur(2px); }
         .modal-content { background: white; max-width: 400px; margin: 5vh auto; padding: 24px; border-radius: 16px; max-height: 90vh; overflow-y: auto;}
         
-        .filter-group { display: flex; gap: 8px; align-items: center; background: white; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
-        .filter-group select { margin: 0; padding: 5px; font-size: 0.85em; width: auto; border: none; background: transparent; }
+        .filter-group { display: flex; gap: 8px; align-items: center; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
+        .filter-group select { margin: 0; padding: 5px; font-size: 0.95em; width: auto; border: none; background: transparent; font-weight: bold; color: var(--primary); cursor: pointer; outline: none;}
         
         .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f9fafb; margin-bottom: 4px; border-radius: 6px; }
 
@@ -155,6 +155,23 @@
 
             <!-- VISTA 1: Control de Gastos -->
             <div id="view-gastos" class="view-section active">
+                
+                <!-- Selector Global de Mes (Arriba a la derecha) -->
+                <div style="display:flex; justify-content:flex-end; margin-bottom: 20px;">
+                    <div class="filter-group">
+                        <span style="font-weight: 600; color: var(--text-muted);">Viendo Mes:</span>
+                        <select id="global-filter-month" onchange="updateView()">
+                            <option value="todos">Todos los meses</option>
+                            <option value="0">Enero</option><option value="1">Febrero</option>
+                            <option value="2">Marzo</option><option value="3">Abril</option>
+                            <option value="4">Mayo</option><option value="5">Junio</option>
+                            <option value="6">Julio</option><option value="7">Agosto</option>
+                            <option value="8">Septiembre</option><option value="9">Octubre</option>
+                            <option value="10">Noviembre</option><option value="11">Diciembre</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="card" style="text-align: center;">
                     <img src="logo.jpg" alt="Logo" class="app-logo" style="width: 60px; height: 60px;">
                     <h3 style="margin: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance Actual</h3>
@@ -164,7 +181,7 @@
                         <span id="total-gi">Total Gastado Gi: $0</span>
                     </div>
                     
-                    <h4 style="margin: 15px 0 5px 0; color: var(--text-muted);">Proporción del Mes Actual</h4>
+                    <h4 style="margin: 15px 0 5px 0; color: var(--text-muted);">Proporción del Período</h4>
                     <div class="chart-container">
                         <canvas id="homePieChart"></canvas>
                     </div>
@@ -204,19 +221,7 @@
 
                     <div class="card right-panel">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                            <h3>Historial</h3>
-                            <div class="filter-group">
-                                <span>Mes:</span>
-                                <select id="filter-month" onchange="renderList()">
-                                    <option value="todos">Todos</option>
-                                    <option value="0">Enero</option><option value="1">Febrero</option>
-                                    <option value="2">Marzo</option><option value="3">Abril</option>
-                                    <option value="4">Mayo</option><option value="5">Junio</option>
-                                    <option value="6">Julio</option><option value="7">Agosto</option>
-                                    <option value="8">Septiembre</option><option value="9">Octubre</option>
-                                    <option value="10">Noviembre</option><option value="11">Diciembre</option>
-                                </select>
-                            </div>
+                            <h3 style="margin:0;">Historial del Mes</h3>
                         </div>
                         <div style="overflow-x:auto;">
                             <table>
@@ -232,7 +237,7 @@
             <div id="view-estadisticas" class="view-section">
                 <div class="card">
                     <h2>Histórico de Gastos</h2>
-                    <p style="color:var(--text-muted); margin-bottom: 20px;">Comparativa mensual del total gastado por cada uno.</p>
+                    <p style="color:var(--text-muted); margin-bottom: 20px;">Comparativa mensual del total gastado por cada uno (Todos los tiempos).</p>
                     <div style="height: 400px; width: 100%;">
                         <canvas id="statsBarChart"></canvas>
                     </div>
@@ -297,12 +302,16 @@
         let expenses = [];
         let currentUserAlias = 'Ari';
         
-        let availableCategories = ["Supermercado", "Servicios", "Salidas", "Auto/Transporte", "Hogar", "Varios"];
+        let availableCategories = ["Supermercado", "Servicios", "Salidas", "Auto/Transporte", "Hogar", "Varios", "Liquidación"];
         let selectedCategoriesNew = [];
         let selectedCategoriesEdit = [];
 
         let homePieChartInstance = null;
         let statsBarChartInstance = null;
+        let currentBalanceGlobal = 0; // Para guardar la deuda al liquidar
+
+        // Establecer mes actual por defecto
+        document.getElementById('global-filter-month').value = new Date().getMonth().toString();
 
         // --- NAVEGACIÓN Y UI ---
         function toggleSidebar() {
@@ -375,7 +384,10 @@
             if (data) { 
                 defaultAriPct = parseFloat(data.porcentaje_ari); 
                 document.getElementById('default-ari-pct').value = defaultAriPct; 
-                if (data.categorias) availableCategories = data.categorias;
+                if (data.categorias) {
+                    availableCategories = data.categorias;
+                    if(!availableCategories.includes("Liquidación")) availableCategories.push("Liquidación");
+                }
             }
             renderCategoryPills('new');
         }
@@ -383,10 +395,15 @@
         async function fetchExpenses() {
             const { data } = await supabaseClient.from('gastos').select('*').order('created_at', { ascending: false });
             expenses = data || [];
+            updateView();
+            if (document.getElementById('view-estadisticas').classList.contains('active')) renderStatsChart();
+        }
+
+        // --- ACTUALIZACIÓN DE VISTAS (FILTRO MES) ---
+        function updateView() {
             renderList(); 
             calculateBalance();
             renderHomeChart();
-            if (document.getElementById('view-estadisticas').classList.contains('active')) renderStatsChart();
         }
 
         // --- CATEGORÍAS ---
@@ -397,6 +414,7 @@
             container.innerHTML = '';
             
             availableCategories.forEach(cat => {
+                if(cat === "Liquidación") return; // Ocultamos liquidación del selector manual
                 const pill = document.createElement('div');
                 pill.className = `tag-pill ${selectedArray.includes(cat) ? 'selected' : ''}`;
                 pill.textContent = cat;
@@ -437,6 +455,7 @@
             const container = document.getElementById('settings-cat-list');
             container.innerHTML = '';
             availableCategories.forEach(cat => {
+                if(cat === "Liquidación") return; // Proteger categoría del sistema
                 const div = document.createElement('div');
                 div.className = 'setting-item';
                 div.innerHTML = `<span>${cat}</span><button type="button" onclick="removeCategory('${cat}')" style="width:auto; padding:4px 10px; background:var(--danger); font-size:0.8em;">Borrar</button>`;
@@ -554,20 +573,40 @@
             }
         };
 
+        // --- SISTEMA DE LIQUIDACIÓN REAL ---
         const settleUp = async () => {
-            if (expenses.length && confirm("¿Liquidar todas las deudas actuales?")) {
-                const { error } = await supabaseClient.from('gastos').update({ liquidado: true }).neq('liquidado', true);
+            if (currentBalanceGlobal === 0) {
+                showToast("Las cuentas ya están saldadas en este período.");
+                return;
+            }
+
+            if (confirm("¿Registrar un pago de liquidación para saldar esta diferencia matemáticamente?")) {
+                // Si la deuda es positiva (Gi debe a Ari), Gi es quien pone la plata (Payer). 
+                // Y Ari es el 100% beneficiario de este reintegro.
+                let payer = currentBalanceGlobal > 0 ? 'Gi' : 'Ari';
+                let pct = currentBalanceGlobal > 0 ? 100 : 0; 
+
+                const data = {
+                    descripcion: 'Liquidación de saldos',
+                    monto: Math.abs(currentBalanceGlobal),
+                    pagador: payer,
+                    categoria: 'Liquidación',
+                    ari_pct: pct
+                };
+
+                const { error } = await supabaseClient.from('gastos').insert([data]);
+                
                 if (error) {
-                    showToast("Error al liquidar", 'var(--danger)');
+                    showToast("Error al registrar liquidación", 'var(--danger)');
                 } else {
-                    showToast("Cuentas liquidadas");
+                    showToast("Liquidación registrada. El saldo se ha compensado.");
                     fetchExpenses();
                 }
             }
         };
 
         const renderList = () => {
-            const month = document.getElementById('filter-month').value;
+            const month = document.getElementById('global-filter-month').value;
             const list = document.getElementById('expense-list');
             list.innerHTML = '';
 
@@ -580,8 +619,8 @@
                 const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
                 
                 let debtText = '';
-                if (ex.liquidado) {
-                    debtText = `<span class="debt-text" style="color: var(--text-muted); background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">Liquidado</span>`;
+                if (ex.categoria === 'Liquidación') {
+                    debtText = `<span class="debt-text" style="color: #166534; background: #dcfce7; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">✔ Liquidación aplicada</span>`;
                 } else if ((ex.pagador === 'Ari' && ex.ari_pct === 100) || (ex.pagador === 'Gi' && ex.ari_pct === 0)) {
                     debtText = `<span class="debt-text" style="color: var(--text-muted);">Sin deuda generada</span>`;
                 } else if (ex.pagador === 'Ari') {
@@ -592,7 +631,10 @@
                     debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: $${ariS}</span>`;
                 }
 
-                const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
+                const catBadges = ex.categoria.split(', ').map(c => {
+                    if(c === 'Liquidación') return `<span class="badge-cat" style="background:#dcfce7; color:#166534;">${c}</span>`;
+                    return `<span class="badge-cat">${c}</span>`;
+                }).join('');
 
                 const tr = document.createElement('tr');
                 tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
@@ -617,33 +659,35 @@
         };
 
         const calculateBalance = () => {
-            let aPaidTotal = 0, gPaidTotal = 0; 
-            let aPaidUnliquidated = 0, aShouldUnliquidated = 0;
+            const month = document.getElementById('global-filter-month').value;
+            let aPaid = 0, gPaid = 0, aShould = 0;
 
-            expenses.forEach(ex => {
+            expenses.filter(ex => {
+                if (month === 'todos') return true;
+                return new Date(ex.created_at).getMonth().toString() === month;
+            }).forEach(ex => {
                 const montoTotal = Math.round(ex.monto);
                 
-                // 1. Total histórico suma SIEMPRE, sin importar la liquidación
-                if (ex.pagador === 'Ari') aPaidTotal += montoTotal; else gPaidTotal += montoTotal;
+                // Sumamos quién pagó realmente
+                if (ex.pagador === 'Ari') aPaid += montoTotal; else gPaid += montoTotal;
 
-                // 2. Cálculo de deuda pendiente SOLO con los no liquidados
-                if (!ex.liquidado) {
-                    if (ex.pagador === 'Ari') aPaidUnliquidated += montoTotal;
-                    aShouldUnliquidated += Math.round(montoTotal * (ex.ari_pct / 100));
-                }
+                // Sumamos cuánto le correspondía a Ari pagar de cada cosa
+                aShould += Math.round(montoTotal * (ex.ari_pct / 100));
             });
 
-            document.getElementById('total-ari').textContent = `Total Gastado Ari: $${aPaidTotal}`;
-            document.getElementById('total-gi').textContent = `Total Gastado Gi: $${gPaidTotal}`;
+            document.getElementById('total-ari').textContent = `Total Gastado Ari: $${aPaid}`;
+            document.getElementById('total-gi').textContent = `Total Gastado Gi: $${gPaid}`;
             
-            const bal = aPaidUnliquidated - aShouldUnliquidated;
+            // Balance = Lo que Ari pagó - Lo que Ari DEBÍA pagar (Si da positivo, puso plata de más y Gi le debe)
+            currentBalanceGlobal = aPaid - aShould;
+            
             const display = document.getElementById('balance-display');
             
-            if (bal > 0) { 
-                display.textContent = `Gi debe a Ari: $${bal}`; 
+            if (currentBalanceGlobal > 0) { 
+                display.textContent = `Gi debe a Ari: $${currentBalanceGlobal}`; 
                 display.style.color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)'; 
-            } else if (bal < 0) { 
-                display.textContent = `Ari debe a Gi: $${Math.abs(bal)}`; 
+            } else if (currentBalanceGlobal < 0) { 
+                display.textContent = `Ari debe a Gi: $${Math.abs(currentBalanceGlobal)}`; 
                 display.style.color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)'; 
             } else { 
                 display.textContent = `Saldados $0`; 
@@ -656,10 +700,15 @@
             const ctx = document.getElementById('homePieChart').getContext('2d');
             if (homePieChartInstance) homePieChartInstance.destroy();
 
-            const currentMonth = new Date().getMonth().toString();
+            const month = document.getElementById('global-filter-month').value;
             let ariM = 0, giM = 0;
-            expenses.forEach(ex => {
-                if (new Date(ex.created_at).getMonth().toString() === currentMonth) {
+            
+            expenses.filter(ex => {
+                if (month === 'todos') return true;
+                return new Date(ex.created_at).getMonth().toString() === month;
+            }).forEach(ex => {
+                // Las liquidaciones no las sumamos al gráfico de torta para que no distorsionen los gastos reales en la proporción visual
+                if (ex.categoria !== 'Liquidación') {
                     if (ex.pagador === 'Ari') ariM += ex.monto; else giM += ex.monto;
                 }
             });
@@ -687,8 +736,10 @@
             const giData = new Array(12).fill(0);
 
             expenses.forEach(ex => {
-                const m = new Date(ex.created_at).getMonth();
-                if (ex.pagador === 'Ari') ariData[m] += ex.monto; else giData[m] += ex.monto;
+                if (ex.categoria !== 'Liquidación') {
+                    const m = new Date(ex.created_at).getMonth();
+                    if (ex.pagador === 'Ari') ariData[m] += ex.monto; else giData[m] += ex.monto;
+                }
             });
 
             statsBarChartInstance = new Chart(ctx, {
