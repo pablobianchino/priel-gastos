@@ -20,20 +20,33 @@
             --border-color: #e5e7eb;
         }
 
-        body { font-family: -apple-system, system-ui, sans-serif; max-width: 1100px; margin: auto; padding: 20px; background-color: var(--bg-color); color: var(--text-main); }
+        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-main); }
         .card { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
         .spinner { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; animation: pulse 1.5s infinite ease-in-out; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
 
-        #login-container { max-width: 380px; margin: 100px auto; text-align: center; }
+        #login-container { max-width: 380px; margin: 100px auto; text-align: center; padding: 20px;}
         .error-msg { color: var(--danger); font-size: 0.9em; margin-top: 10px; display: none; }
-        #app-container { display: none; }
 
+        /* Estructura Sidebar y Main */
+        #app-wrapper { display: none; min-height: 100vh; flex-direction: row; }
+        
+        #sidebar { width: 250px; background: white; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; transition: transform 0.3s ease; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;}
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; }
+        .sidebar-menu li { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #f9fafb; font-weight: 500; color: var(--text-muted); }
+        .sidebar-menu li:hover { background: #f3f4f6; color: var(--primary); }
+        .sidebar-menu li.active { background: #e0e7ff; color: var(--primary); border-right: 4px solid var(--primary); }
+        .close-sidebar-btn { display: none; background: none; border: none; font-size: 1.2em; cursor: pointer; color: var(--text-muted); width: auto; padding: 0;}
+
+        #main-content { flex: 1; padding: 20px; max-width: 1200px; margin: auto; overflow-x: hidden; }
+        
         .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 24px; gap: 12px; }
+        .hamburger-btn { display: none; background: none; border: none; font-size: 1.8em; cursor: pointer; color: var(--text-main); width: auto; padding: 0; margin-right: auto; }
+        
         .user-badge { background: #e0e7ff; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85em; }
-
         .app-logo { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 16px auto; border: 3px solid var(--border-color); }
 
         input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1em; background-color: #f9fafb; }
@@ -46,14 +59,12 @@
         button { background-color: var(--primary); color: white; border: none; padding: 12px 20px; cursor: pointer; font-weight: 600; border-radius: 8px; width: 100%; }
         button:hover { background-color: var(--primary-hover); }
         
-        .icon-btn { width: 44px; height: 44px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; cursor: pointer; }
+        .icon-btn { width: 44px; height: 44px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; cursor: pointer; padding: 0;}
         .logout { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); width: auto; padding: 8px 12px; font-size: 0.8em; }
 
-        /* Etiquetas Multi-selección */
         .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
         .tag-pill { padding: 8px 12px; background: #f3f4f6; border-radius: 20px; font-size: 0.85em; cursor: pointer; border: 1px solid transparent; user-select: none;}
         .tag-pill.selected { background: #e0e7ff; color: var(--primary); border-color: var(--primary); font-weight: bold; }
-        
         .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; margin-right: 4px;}
         
         .layout-container { display: flex; gap: 24px; flex-wrap: wrap; }
@@ -63,7 +74,6 @@
         table { width: 100%; border-collapse: collapse; }
         th { text-align: left; padding: 12px; color: var(--text-muted); font-size: 0.75em; border-bottom: 2px solid var(--border-color); }
         td { padding: 14px 12px; border-bottom: 1px solid var(--border-color); }
-        
         tbody tr { cursor: pointer; transition: background-color 0.2s; }
         tbody tr:hover { background-color: #f0fdf4; }
 
@@ -75,16 +85,30 @@
         .totals { display: flex; justify-content: space-around; background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 10px; }
         .debt-text { font-weight: 600; display: inline-block; margin-top: 4px; }
 
-        #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(100px); transition: transform 0.3s; z-index: 2000; }
+        #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(100px); transition: transform 0.3s; z-index: 5000; }
         #toast.show { transform: translateY(0); }
 
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; backdrop-filter: blur(2px); }
-        .modal-content { background: white; max-width: 400px; margin: 10vh auto; padding: 24px; border-radius: 16px; max-height: 90vh; overflow-y: auto;}
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; backdrop-filter: blur(2px); }
+        .modal-content { background: white; max-width: 400px; margin: 5vh auto; padding: 24px; border-radius: 16px; max-height: 90vh; overflow-y: auto;}
         
         .filter-group { display: flex; gap: 8px; align-items: center; background: white; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
         .filter-group select { margin: 0; padding: 5px; font-size: 0.85em; width: auto; border: none; background: transparent; }
         
         .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f9fafb; margin-bottom: 4px; border-radius: 6px; }
+
+        /* Vistas */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+        .chart-container { height: 250px; display: flex; justify-content: center; margin-bottom: 15px;}
+
+        @media (max-width: 768px) {
+            #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 3000; transform: translateX(-100%); }
+            #sidebar.open { transform: translateX(0); }
+            .hamburger-btn { display: block; }
+            .close-sidebar-btn { display: block; }
+            .layout-container { flex-direction: column; }
+            .right-panel { min-width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -107,84 +131,144 @@
         </form>
     </div>
 
-    <div id="app-container">
-        <div class="header">
-            <span class="user-badge" id="logged-user-display"></span>
-            <button class="icon-btn" onclick="openReport()">📊</button>
-            <button class="icon-btn" onclick="openSettings()">⚙️</button>
-            <button class="logout" onclick="logout()">Salir</button>
-        </div>
-
-        <div class="card" style="text-align: center;">
-            <h2 style="margin-bottom: 15px;">Control de Gastos Priel</h2>
-            <img src="logo.jpg" alt="Logo" class="app-logo">
-            <h3 style="margin: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase; letter-spacing: 1px;">Balance Actual</h3>
-            <div id="balance-display" class="balance">$0</div>
-            <div class="totals">
-                <span id="total-ari">Ari: $0</span>
-                <span id="total-gi">Gi: $0</span>
+    <div id="app-wrapper">
+        <!-- Sidebar Izquierdo -->
+        <nav id="sidebar">
+            <div class="sidebar-header">
+                <h3 style="margin:0;">Menú Priel</h3>
+                <button class="close-sidebar-btn" onclick="toggleSidebar()">✖</button>
             </div>
-            <button class="settle" onclick="settleUp()">Liquidar Cuentas</button>
-        </div>
+            <ul class="sidebar-menu">
+                <li id="nav-gastos" class="active" onclick="switchView('gastos')">🏠 Control de Gastos</li>
+                <li id="nav-estadisticas" onclick="switchView('estadisticas')">📈 Estadísticas</li>
+            </ul>
+        </nav>
 
-        <div class="layout-container">
-            <div class="left-panel">
-                <div class="card">
-                    <h3 id="form-title">Nuevo Gasto</h3>
-                    <form id="expense-form">
-                        <input type="hidden" id="edit-id">
-                        <label>Descripción</label>
-                        <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value)">
-                        
-                        <label>Monto</label>
-                        <input type="number" id="amount" placeholder="0" required>
-                        <div class="quick-amounts">
-                            <button type="button" onclick="addAmount(5000)">+5k</button>
-                            <button type="button" onclick="addAmount(10000)">+10k</button>
-                            <button type="button" onclick="addAmount(20000)">+20k</button>
-                        </div>
+        <!-- Contenido Principal -->
+        <div id="main-content">
+            <div class="header">
+                <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+                <span class="user-badge" id="logged-user-display"></span>
+                <button class="icon-btn" onclick="openSettings()">⚙️</button>
+                <button class="logout" onclick="logout()">Salir</button>
+            </div>
 
-                        <label>Categorías (Puedes elegir varias)</label>
-                        <div id="category-pills" class="tags-container"></div>
+            <!-- VISTA 1: Control de Gastos -->
+            <div id="view-gastos" class="view-section active">
+                <div class="card" style="text-align: center;">
+                    <img src="logo.jpg" alt="Logo" class="app-logo" style="width: 60px; height: 60px;">
+                    <h3 style="margin: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance Actual</h3>
+                    <div id="balance-display" class="balance">$0</div>
+                    <div class="totals">
+                        <span id="total-ari">Total Gastado Ari: $0</span>
+                        <span id="total-gi">Total Gastado Gi: $0</span>
+                    </div>
+                    
+                    <h4 style="margin: 15px 0 5px 0; color: var(--text-muted);">Proporción del Mes Actual</h4>
+                    <div class="chart-container">
+                        <canvas id="homePieChart"></canvas>
+                    </div>
 
-                        <label>Pagó</label>
-                        <select id="payer">
-                            <option value="Ari">Ari</option>
-                            <option value="Gi">Gi</option>
-                        </select>
-
-                        <button type="submit" id="submit-btn">Guardar</button>
-                        <button type="button" id="cancel-btn" style="display:none; background:#9ca3af; margin-top:8px;" onclick="cancelEdit()">Cancelar Edición</button>
-                    </form>
+                    <button class="settle" onclick="settleUp()">Liquidar Cuentas</button>
                 </div>
-            </div>
 
-            <div class="card right-panel">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h3>Historial</h3>
-                    <div class="filter-group">
-                        <span>Mes:</span>
-                        <select id="filter-month" onchange="renderList()">
-                            <option value="todos">Todos</option>
-                            <option value="0">Enero</option><option value="1">Febrero</option>
-                            <option value="2">Marzo</option><option value="3">Abril</option>
-                            <option value="4">Mayo</option><option value="5">Junio</option>
-                            <option value="6">Julio</option><option value="7">Agosto</option>
-                            <option value="8">Septiembre</option><option value="9">Octubre</option>
-                            <option value="10">Noviembre</option><option value="11">Diciembre</option>
-                        </select>
+                <div class="layout-container">
+                    <div class="left-panel">
+                        <div class="card">
+                            <h3>Nuevo Gasto</h3>
+                            <form id="expense-form">
+                                <label>Descripción</label>
+                                <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value, 'new')">
+                                
+                                <label>Monto</label>
+                                <input type="number" id="amount" placeholder="0" required>
+                                <div class="quick-amounts">
+                                    <button type="button" onclick="addAmount(5000, 'amount')">+5k</button>
+                                    <button type="button" onclick="addAmount(10000, 'amount')">+10k</button>
+                                    <button type="button" onclick="addAmount(20000, 'amount')">+20k</button>
+                                </div>
+
+                                <label>Categorías</label>
+                                <div id="category-pills-new" class="tags-container"></div>
+
+                                <label>Pagó</label>
+                                <select id="payer">
+                                    <option value="Ari">Ari</option>
+                                    <option value="Gi">Gi</option>
+                                </select>
+
+                                <button type="submit" id="submit-btn">Guardar Gasto</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card right-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <h3>Historial</h3>
+                            <div class="filter-group">
+                                <span>Mes:</span>
+                                <select id="filter-month" onchange="renderList()">
+                                    <option value="todos">Todos</option>
+                                    <option value="0">Enero</option><option value="1">Febrero</option>
+                                    <option value="2">Marzo</option><option value="3">Abril</option>
+                                    <option value="4">Mayo</option><option value="5">Junio</option>
+                                    <option value="6">Julio</option><option value="7">Agosto</option>
+                                    <option value="8">Septiembre</option><option value="9">Octubre</option>
+                                    <option value="10">Noviembre</option><option value="11">Diciembre</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table>
+                                <thead><tr><th>Gasto</th><th>Monto</th><th>Distribución</th><th></th></tr></thead>
+                                <tbody id="expense-list"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead><tr><th>Gasto</th><th>Monto</th><th>Distribución</th><th></th></tr></thead>
-                        <tbody id="expense-list"></tbody>
-                    </table>
+            </div>
+
+            <!-- VISTA 2: Estadísticas -->
+            <div id="view-estadisticas" class="view-section">
+                <div class="card">
+                    <h2>Histórico de Gastos</h2>
+                    <p style="color:var(--text-muted); margin-bottom: 20px;">Comparativa mensual del total gastado por cada uno.</p>
+                    <div style="height: 400px; width: 100%;">
+                        <canvas id="statsBarChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- MODAL DE EDICIÓN -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Editar Gasto</h3>
+            <form id="edit-expense-form">
+                <input type="hidden" id="edit-id">
+                <label>Descripción</label>
+                <input type="text" id="edit-desc" required oninput="smartSuggest(this.value, 'edit')">
+                
+                <label>Monto</label>
+                <input type="number" id="edit-amount" required>
+
+                <label>Categorías</label>
+                <div id="category-pills-edit" class="tags-container"></div>
+
+                <label>Pagó</label>
+                <select id="edit-payer">
+                    <option value="Ari">Ari</option>
+                    <option value="Gi">Gi</option>
+                </select>
+
+                <button type="submit" id="edit-submit-btn">Actualizar Gasto</button>
+                <button type="button" style="background:transparent; color:var(--text-muted); margin-top:8px;" onclick="closeEditModal()">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE AJUSTES -->
     <div id="settings-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Ajustes Generales</h3>
@@ -204,18 +288,6 @@
         </div>
     </div>
 
-    <div id="report-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width:500px;">
-            <h3>Análisis de Gastos</h3>
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <button onclick="renderChart('pagador')" style="font-size:0.8em;">Por Persona</button>
-                <button onclick="renderChart('categoria')" style="font-size:0.8em; background:#6366f1;">Por Categoría</button>
-            </div>
-            <canvas id="expenseChart"></canvas>
-            <button onclick="closeReport()" style="background:transparent; color:var(--text-muted); margin-top:15px;">Cerrar</button>
-        </div>
-    </div>
-
     <script>
         const supabaseUrl = 'https://ruefngsgxvbhxkgiddnn.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZuZ3NneHZiaHhrZ2lkZG5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzIxMzksImV4cCI6MjA5MjAwODEzOX0.BnhJNgpR83qcJSyveAZatI_WGhfJQjrlmr81ymf1SMc';
@@ -223,12 +295,33 @@
 
         let defaultAriPct = 50; 
         let expenses = [];
-        let chartInstance = null;
         let currentUserAlias = 'Ari';
         
         let availableCategories = ["Supermercado", "Servicios", "Salidas", "Auto/Transporte", "Hogar", "Varios"];
-        let selectedCategories = [];
+        let selectedCategoriesNew = [];
+        let selectedCategoriesEdit = [];
 
+        let homePieChartInstance = null;
+        let statsBarChartInstance = null;
+
+        // --- NAVEGACIÓN Y UI ---
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function switchView(view) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar-menu li').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`view-${view}`).classList.add('active');
+            document.getElementById(`nav-${view}`).classList.add('active');
+            
+            if (window.innerWidth <= 768) toggleSidebar();
+            
+            if (view === 'estadisticas') renderStatsChart();
+        }
+
+        // --- AUTH ---
         supabaseClient.auth.onAuthStateChange((event, session) => {
             if (session) {
                 const email = session.user.email.toLowerCase();
@@ -260,14 +353,13 @@
         async function showApp() {
             document.getElementById('login-container').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'flex';
-            document.getElementById('app-container').style.display = 'none';
             await initApp();
             document.getElementById('loading-screen').style.display = 'none';
-            document.getElementById('app-container').style.display = 'block';
+            document.getElementById('app-wrapper').style.display = 'flex';
         }
 
         function showLogin() {
-            document.getElementById('app-container').style.display = 'none';
+            document.getElementById('app-wrapper').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('login-container').style.display = 'block';
             document.getElementById('btn-login').textContent = 'Ingresar'; 
@@ -285,47 +377,69 @@
                 document.getElementById('default-ari-pct').value = defaultAriPct; 
                 if (data.categorias) availableCategories = data.categorias;
             }
-            renderCategoryPills();
+            renderCategoryPills('new');
         }
 
         async function fetchExpenses() {
             const { data } = await supabaseClient.from('gastos').select('*').order('created_at', { ascending: false });
             expenses = data || [];
-            renderList(); calculateBalance();
+            renderList(); 
+            calculateBalance();
+            renderHomeChart();
+            if (document.getElementById('view-estadisticas').classList.contains('active')) renderStatsChart();
         }
 
-        // --- SISTEMA DE CATEGORÍAS ---
-        function renderCategoryPills() {
-            const container = document.getElementById('category-pills');
+        // --- CATEGORÍAS ---
+        function renderCategoryPills(context) {
+            const containerId = context === 'new' ? 'category-pills-new' : 'category-pills-edit';
+            const selectedArray = context === 'new' ? selectedCategoriesNew : selectedCategoriesEdit;
+            const container = document.getElementById(containerId);
             container.innerHTML = '';
+            
             availableCategories.forEach(cat => {
                 const pill = document.createElement('div');
-                pill.className = `tag-pill ${selectedCategories.includes(cat) ? 'selected' : ''}`;
+                pill.className = `tag-pill ${selectedArray.includes(cat) ? 'selected' : ''}`;
                 pill.textContent = cat;
-                pill.onclick = () => toggleCategory(cat);
+                pill.onclick = () => toggleCategory(cat, context);
                 container.appendChild(pill);
             });
         }
 
-        function toggleCategory(cat) {
-            if (selectedCategories.includes(cat)) {
-                selectedCategories = selectedCategories.filter(c => c !== cat);
+        function toggleCategory(cat, context) {
+            let selectedArray = context === 'new' ? selectedCategoriesNew : selectedCategoriesEdit;
+            if (selectedArray.includes(cat)) {
+                selectedArray = selectedArray.filter(c => c !== cat);
             } else {
-                selectedCategories.push(cat);
+                selectedArray.push(cat);
             }
-            renderCategoryPills();
+            if (context === 'new') selectedCategoriesNew = selectedArray;
+            else selectedCategoriesEdit = selectedArray;
+            
+            renderCategoryPills(context);
         }
 
+        function smartSuggest(val, context) {
+            const v = val.toLowerCase();
+            let arr = [];
+            if (v.includes('super') || v.includes('coto') || v.includes('dia')) arr.push('Supermercado');
+            if (v.includes('luz') || v.includes('agua') || v.includes('gas') || v.includes('internet')) arr.push('Servicios');
+            if (v.includes('pizza') || v.includes('cine') || v.includes('cerveza')) arr.push('Salidas');
+            if (v.includes('nafta') || v.includes('uber') || v.includes('peaje')) arr.push('Auto/Transporte');
+            
+            if (context === 'new') selectedCategoriesNew = arr;
+            else selectedCategoriesEdit = arr;
+            
+            renderCategoryPills(context);
+        };
+
+        // --- AJUSTES ---
         function renderSettingsCategories() {
             const container = document.getElementById('settings-cat-list');
             container.innerHTML = '';
             availableCategories.forEach(cat => {
                 const div = document.createElement('div');
                 div.className = 'setting-item';
-                div.innerHTML = `
-                    <span>${cat}</span>
-                    <button type="button" onclick="removeCategory('${cat}')" style="width:auto; padding:4px 10px; background:var(--danger); font-size:0.8em;">Borrar</button>
-                `;
+                div.innerHTML = `<span>${cat}</span><button type="button" onclick="removeCategory('${cat}')" style="width:auto; padding:4px 10px; background:var(--danger); font-size:0.8em;">Borrar</button>`;
                 container.appendChild(div);
             });
         }
@@ -337,226 +451,262 @@
                 availableCategories.push(val);
                 input.value = '';
                 renderSettingsCategories();
-                renderCategoryPills();
+                renderCategoryPills('new');
             }
         }
 
         function removeCategory(cat) {
             if (confirm(`¿Borrar categoría "${cat}"?`)) {
                 availableCategories = availableCategories.filter(c => c !== cat);
-                selectedCategories = selectedCategories.filter(c => c !== cat);
+                selectedCategoriesNew = selectedCategoriesNew.filter(c => c !== cat);
                 renderSettingsCategories();
-                renderCategoryPills();
+                renderCategoryPills('new');
             }
         }
 
-        function openSettings() { 
-            document.getElementById('settings-modal').style.display = 'block'; 
-            renderSettingsCategories();
-        }
+        function openSettings() { document.getElementById('settings-modal').style.display = 'block'; renderSettingsCategories(); }
         function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
-        function openReport() { document.getElementById('report-modal').style.display = 'block'; renderChart(); }
-        function closeReport() { document.getElementById('report-modal').style.display = 'none'; }
+        
         function showToast(msg, color = 'var(--success)') {
             const t = document.getElementById('toast');
             t.textContent = msg; t.style.background = color; t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
         }
 
-        const addAmount = (val) => {
-            const input = document.getElementById('amount');
+        const addAmount = (val, inputId) => {
+            const input = document.getElementById(inputId);
             input.value = (parseInt(input.value) || 0) + val;
         };
 
-        const smartSuggest = (val) => {
-            const v = val.toLowerCase();
-            selectedCategories = [];
-            if (v.includes('super') || v.includes('coto') || v.includes('dia')) selectedCategories.push('Supermercado');
-            if (v.includes('luz') || v.includes('agua') || v.includes('gas') || v.includes('internet')) selectedCategories.push('Servicios');
-            if (v.includes('pizza') || v.includes('cine') || v.includes('cerveza')) selectedCategories.push('Salidas');
-            if (v.includes('nafta') || v.includes('uber') || v.includes('peaje')) selectedCategories.push('Auto/Transporte');
-            renderCategoryPills();
-        };
-
+        // --- CRUD GASTOS ---
         document.getElementById('expense-form').onsubmit = async (e) => {
             e.preventDefault();
-            if (selectedCategories.length === 0) {
-                showToast("Debes seleccionar al menos una categoría", 'var(--danger)');
-                return;
-            }
+            if (selectedCategoriesNew.length === 0) { showToast("Seleccioná al menos una categoría", 'var(--danger)'); return; }
 
             const btn = document.getElementById('submit-btn');
-            const id = document.getElementById('edit-id').value;
             const data = {
                 descripcion: document.getElementById('desc').value,
                 monto: Math.round(document.getElementById('amount').value),
                 pagador: document.getElementById('payer').value,
-                categoria: selectedCategories.join(', '),
-                ari_pct: id ? expenses.find(x => x.id === id).ari_pct : defaultAriPct
+                categoria: selectedCategoriesNew.join(', '),
+                ari_pct: defaultAriPct
             };
 
             btn.disabled = true;
-            if (id) await supabaseClient.from('gastos').update(data).eq('id', id);
-            else await supabaseClient.from('gastos').insert([data]);
-
-            showToast(id ? "Gasto actualizado" : "Gasto guardado");
+            await supabaseClient.from('gastos').insert([data]);
+            
+            showToast("Gasto guardado");
+            document.getElementById('expense-form').reset();
+            document.getElementById('payer').value = currentUserAlias;
+            selectedCategoriesNew = [];
+            renderCategoryPills('new');
             await fetchExpenses();
-            cancelEdit();
             btn.disabled = false;
         };
 
-        const renderList = () => {
-    const month = document.getElementById('filter-month').value;
-    const list = document.getElementById('expense-list');
-    list.innerHTML = '';
+        document.getElementById('edit-expense-form').onsubmit = async (e) => {
+            e.preventDefault();
+            if (selectedCategoriesEdit.length === 0) { showToast("Seleccioná al menos una categoría", 'var(--danger)'); return; }
 
-    expenses.filter(ex => {
-        if (month === 'todos') return true;
-        return new Date(ex.created_at).getMonth().toString() === month;
-    }).forEach(ex => {
-        const ariS = Math.round(ex.monto * (ex.ari_pct / 100));
-        const giS = ex.monto - ariS;
-        const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
-        
-        let debtText = '';
-        if (ex.liquidado) {
-            debtText = `<span class="debt-text" style="color: var(--text-muted); background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">Liquidado</span>`;
-        } else if ((ex.pagador === 'Ari' && ex.ari_pct === 100) || (ex.pagador === 'Gi' && ex.ari_pct === 0)) {
-            debtText = `<span class="debt-text" style="color: var(--text-muted);">Sin deuda generada</span>`;
-        } else if (ex.pagador === 'Ari') {
-            const color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)';
-            debtText = `<span class="debt-text" style="color: ${color};">Gi debe a Ari: $${giS}</span>`;
-        } else {
-            const color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)';
-            debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: $${ariS}</span>`;
-        }
+            const btn = document.getElementById('edit-submit-btn');
+            const id = document.getElementById('edit-id').value;
+            const ex = expenses.find(x => x.id === id);
+            
+            const data = {
+                descripcion: document.getElementById('edit-desc').value,
+                monto: Math.round(document.getElementById('edit-amount').value),
+                pagador: document.getElementById('edit-payer').value,
+                categoria: selectedCategoriesEdit.join(', '),
+                ari_pct: ex.ari_pct 
+            };
 
-        const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
-
-        const tr = document.createElement('tr');
-        tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
-        tr.innerHTML = `
-            <td>
-                <div style="font-size:0.7em; color:var(--text-muted)">${date}</div>
-                <div style="font-weight:600">${ex.descripcion}</div>
-                ${catBadges}
-            </td>
-            <td style="font-weight:700">$${ex.monto}</td>
-            <td style="font-size:0.9em; color:var(--text-muted)">
-                Ari: $${ariS} (${ex.ari_pct}%)<br>
-                Gi: $${giS} (${100 - ex.ari_pct}%)<br>
-                ${debtText}
-            </td>
-            <td style="text-align: right; vertical-align: middle;">
-                <button type="button" class="action-btn delete" onclick="deleteExpense('${ex.id}')" title="Borrar">🗑️</button>
-            </td>
-        `;
-        list.appendChild(tr);
-    });
-};
-
-        const calculateBalance = () => {
-    let aPaid = 0, gPaid = 0, aShould = 0;
-    expenses.forEach(ex => {
-        // Ignorar este gasto en la suma si ya fue liquidado
-        if (ex.liquidado) return; 
-
-        const montoTotal = Math.round(ex.monto);
-        if (ex.pagador === 'Ari') aPaid += montoTotal; else gPaid += montoTotal;
-        aShould += Math.round(montoTotal * (ex.ari_pct / 100));
-    });
-    document.getElementById('total-ari').textContent = `Ari: $${aPaid}`;
-    document.getElementById('total-gi').textContent = `Gi: $${gPaid}`;
-    const bal = aPaid - aShould;
-    const display = document.getElementById('balance-display');
-    
-    if (bal > 0) { 
-        display.textContent = `Gi debe a Ari: $${bal}`; 
-        display.style.color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)'; 
-    } else if (bal < 0) { 
-        display.textContent = `Ari debe a Gi: $${Math.abs(bal)}`; 
-        display.style.color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)'; 
-    } else { 
-        display.textContent = `Saldados $0`; 
-        display.style.color = 'var(--text-main)'; 
-    }
-};
-
-        const renderChart = (tipo = 'pagador') => {
-            const ctx = document.getElementById('expenseChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
-
-            const dataMap = {};
-            expenses.forEach(ex => {
-                if (tipo === 'categoria') {
-                    const cats = ex.categoria.split(', ');
-                    const splitAmount = ex.monto / cats.length; // Divide el monto si hay varias etiquetas
-                    cats.forEach(c => dataMap[c] = (dataMap[c] || 0) + splitAmount);
-                } else {
-                    dataMap[ex[tipo]] = (dataMap[ex[tipo]] || 0) + ex.monto;
-                }
-            });
-
-            chartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(dataMap),
-                    datasets: [{ data: Object.values(dataMap), backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#8b5cf6'] }]
-                },
-                options: { plugins: { legend: { position: 'bottom' } } }
-            });
+            btn.disabled = true;
+            await supabaseClient.from('gastos').update(data).eq('id', id);
+            
+            showToast("Gasto actualizado");
+            closeEditModal();
+            await fetchExpenses();
+            btn.disabled = false;
         };
 
         const editExpense = (id) => {
             const ex = expenses.find(x => x.id === id);
             document.getElementById('edit-id').value = ex.id;
-            document.getElementById('desc').value = ex.descripcion;
-            document.getElementById('amount').value = ex.monto;
-            document.getElementById('payer').value = ex.pagador;
+            document.getElementById('edit-desc').value = ex.descripcion;
+            document.getElementById('edit-amount').value = ex.monto;
+            document.getElementById('edit-payer').value = ex.pagador;
             
-            selectedCategories = ex.categoria.split(', ');
-            renderCategoryPills();
+            selectedCategoriesEdit = ex.categoria.split(', ');
+            renderCategoryPills('edit');
 
-            document.getElementById('submit-btn').textContent = "Actualizar";
-            document.getElementById('cancel-btn').style.display = "block";
-            window.scrollTo(0,0);
+            document.getElementById('edit-modal').style.display = 'block';
         };
 
-        const cancelEdit = () => {
-            document.getElementById('expense-form').reset();
-            document.getElementById('payer').value = currentUserAlias;
-            document.getElementById('edit-id').value = '';
-            selectedCategories = [];
-            renderCategoryPills();
-            document.getElementById('submit-btn').textContent = "Guardar";
-            document.getElementById('cancel-btn').style.display = "none";
+        const closeEditModal = () => {
+            document.getElementById('edit-modal').style.display = 'none';
         };
 
         const deleteExpense = async (id) => {
-            if (confirm("¿Borrar gasto?")) {
+            if (confirm("¿Borrar gasto permanentemente?")) {
                 await supabaseClient.from('gastos').delete().eq('id', id);
                 showToast("Gasto eliminado", 'var(--danger)');
                 fetchExpenses();
             }
         };
 
-       const settleUp = async () => {
-    if (expenses.length && confirm("¿Liquidar todas las deudas actuales?")) {
-        // En lugar de borrar, cambia el estado a liquidado = true
-        const { error } = await supabaseClient
-            .from('gastos')
-            .update({ liquidado: true })
-            .neq('liquidado', true); // Actualiza los que no estén liquidados
+        const settleUp = async () => {
+            if (expenses.length && confirm("¿Liquidar todas las deudas actuales?")) {
+                const { error } = await supabaseClient.from('gastos').update({ liquidado: true }).neq('liquidado', true);
+                if (error) {
+                    showToast("Error al liquidar", 'var(--danger)');
+                } else {
+                    showToast("Cuentas liquidadas");
+                    fetchExpenses();
+                }
+            }
+        };
 
-        if (error) {
-            showToast("Error al liquidar", 'var(--danger)');
-            console.error(error);
-        } else {
-            showToast("Cuentas liquidadas");
-            fetchExpenses();
-        }
-    }
-};
+        const renderList = () => {
+            const month = document.getElementById('filter-month').value;
+            const list = document.getElementById('expense-list');
+            list.innerHTML = '';
+
+            expenses.filter(ex => {
+                if (month === 'todos') return true;
+                return new Date(ex.created_at).getMonth().toString() === month;
+            }).forEach(ex => {
+                const ariS = Math.round(ex.monto * (ex.ari_pct / 100));
+                const giS = ex.monto - ariS;
+                const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
+                
+                let debtText = '';
+                if (ex.liquidado) {
+                    debtText = `<span class="debt-text" style="color: var(--text-muted); background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">Liquidado</span>`;
+                } else if ((ex.pagador === 'Ari' && ex.ari_pct === 100) || (ex.pagador === 'Gi' && ex.ari_pct === 0)) {
+                    debtText = `<span class="debt-text" style="color: var(--text-muted);">Sin deuda generada</span>`;
+                } else if (ex.pagador === 'Ari') {
+                    const color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)';
+                    debtText = `<span class="debt-text" style="color: ${color};">Gi debe a Ari: $${giS}</span>`;
+                } else {
+                    const color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)';
+                    debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: $${ariS}</span>`;
+                }
+
+                const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
+
+                const tr = document.createElement('tr');
+                tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-size:0.7em; color:var(--text-muted)">${date}</div>
+                        <div style="font-weight:600">${ex.descripcion}</div>
+                        ${catBadges}
+                    </td>
+                    <td style="font-weight:700">$${ex.monto}</td>
+                    <td style="font-size:0.9em; color:var(--text-muted)">
+                        Ari: $${ariS} (${ex.ari_pct}%)<br>
+                        Gi: $${giS} (${100 - ex.ari_pct}%)<br>
+                        ${debtText}
+                    </td>
+                    <td style="text-align: right; vertical-align: middle;">
+                        <button type="button" class="action-btn delete" onclick="deleteExpense('${ex.id}')" title="Borrar">🗑️</button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        };
+
+        const calculateBalance = () => {
+            let aPaidTotal = 0, gPaidTotal = 0; 
+            let aPaidUnliquidated = 0, aShouldUnliquidated = 0;
+
+            expenses.forEach(ex => {
+                const montoTotal = Math.round(ex.monto);
+                
+                // 1. Total histórico suma SIEMPRE, sin importar la liquidación
+                if (ex.pagador === 'Ari') aPaidTotal += montoTotal; else gPaidTotal += montoTotal;
+
+                // 2. Cálculo de deuda pendiente SOLO con los no liquidados
+                if (!ex.liquidado) {
+                    if (ex.pagador === 'Ari') aPaidUnliquidated += montoTotal;
+                    aShouldUnliquidated += Math.round(montoTotal * (ex.ari_pct / 100));
+                }
+            });
+
+            document.getElementById('total-ari').textContent = `Total Gastado Ari: $${aPaidTotal}`;
+            document.getElementById('total-gi').textContent = `Total Gastado Gi: $${gPaidTotal}`;
+            
+            const bal = aPaidUnliquidated - aShouldUnliquidated;
+            const display = document.getElementById('balance-display');
+            
+            if (bal > 0) { 
+                display.textContent = `Gi debe a Ari: $${bal}`; 
+                display.style.color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)'; 
+            } else if (bal < 0) { 
+                display.textContent = `Ari debe a Gi: $${Math.abs(bal)}`; 
+                display.style.color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)'; 
+            } else { 
+                display.textContent = `Saldados $0`; 
+                display.style.color = 'var(--text-main)'; 
+            }
+        };
+
+        // --- GRÁFICOS ---
+        const renderHomeChart = () => {
+            const ctx = document.getElementById('homePieChart').getContext('2d');
+            if (homePieChartInstance) homePieChartInstance.destroy();
+
+            const currentMonth = new Date().getMonth().toString();
+            let ariM = 0, giM = 0;
+            expenses.forEach(ex => {
+                if (new Date(ex.created_at).getMonth().toString() === currentMonth) {
+                    if (ex.pagador === 'Ari') ariM += ex.monto; else giM += ex.monto;
+                }
+            });
+
+            homePieChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ari', 'Gi'],
+                    datasets: [{ data: [ariM, giM], backgroundColor: ['#4f46e5', '#ec4899'] }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } } 
+                }
+            });
+        };
+
+        const renderStatsChart = () => {
+            const ctx = document.getElementById('statsBarChart').getContext('2d');
+            if (statsBarChartInstance) statsBarChartInstance.destroy();
+
+            const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            const ariData = new Array(12).fill(0);
+            const giData = new Array(12).fill(0);
+
+            expenses.forEach(ex => {
+                const m = new Date(ex.created_at).getMonth();
+                if (ex.pagador === 'Ari') ariData[m] += ex.monto; else giData[m] += ex.monto;
+            });
+
+            statsBarChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [
+                        { label: 'Ari', data: ariData, backgroundColor: '#4f46e5' },
+                        { label: 'Gi', data: giData, backgroundColor: '#ec4899' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        };
 
         const saveDefaultPct = async () => {
             const pct = parseFloat(document.getElementById('default-ari-pct').value);
