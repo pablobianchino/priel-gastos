@@ -83,6 +83,9 @@
         .balance { font-size: 2em; font-weight: 800; text-align: center; margin: 15px 0; }
         .totals { display: flex; justify-content: space-around; background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 10px; }
         .debt-text { font-weight: 600; display: inline-block; margin-top: 4px; }
+        
+        /* Nuevo Total Combinado */
+        .total-combined { font-size: 1.2em; font-weight: 700; color: var(--text-main); margin-top: 15px; margin-bottom: 20px; padding: 10px; background: #e0e7ff; border-radius: 8px; }
 
         #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(100px); transition: transform 0.3s; z-index: 5000; }
         #toast.show { transform: translateY(0); }
@@ -99,6 +102,12 @@
         .view-section.active { display: block; }
         .chart-container { height: 250px; display: flex; justify-content: center; margin-bottom: 15px;}
 
+        /* ESTILOS DEL ACORDEÓN PARA NUEVO GASTO */
+        .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-top: 0; margin-bottom: 0; }
+        .accordion-icon { font-size: 1.2em; transition: transform 0.3s; }
+        .accordion-icon.open { transform: rotate(180deg); }
+        .accordion-content { overflow: hidden; transition: max-height 0.3s ease-out; max-height: 1000px; /* Alto por defecto en escritorio */ }
+
         /* MEDIA QUERIES PARA CELULAR */
         @media (max-width: 768px) {
             #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 4000; transform: translateX(-100%); width: 260px; box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
@@ -108,10 +117,15 @@
             
             .header { flex-wrap: wrap; justify-content: flex-end; }
             .filter-group { order: 5; width: 100%; margin-top: 15px; margin-left: 0 !important; justify-content: center; background: #e5e7eb; }
-            #logged-user-display { display: none; } /* Ocultar email para ganar espacio en botonera */
+            #logged-user-display { display: none; } 
             
             .layout-container { flex-direction: column; }
             .right-panel { min-width: 100%; }
+
+            /* Comportamiento del Acordeón en Celular */
+            .accordion-content { max-height: 0; padding-top: 0; }
+            .accordion-content.open { max-height: 1000px; padding-top: 15px; }
+            .card.left-panel { padding-bottom: 15px; } /* Ajuste visual cuando está cerrado */
         }
     </style>
 </head>
@@ -180,32 +194,36 @@
                 <!-- SECCIÓN SUPERIOR: FORMULARIO Y GRÁFICO -->
                 <div class="layout-container">
                     
-                    <!-- NUEVO GASTO (IZQUIERDA) -->
+                    <!-- NUEVO GASTO (IZQUIERDA - ACORDEÓN) -->
                     <div class="card left-panel" style="margin-bottom: 0;">
-                        <h3 style="margin-top:0;">Nuevo Gasto</h3>
-                        <form id="expense-form">
-                            <label>Descripción</label>
-                            <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value, 'new')">
-                            
-                            <label>Monto</label>
-                            <input type="number" id="amount" placeholder="0" required>
-                            <div class="quick-amounts">
-                                <button type="button" onclick="addAmount(5000, 'amount')">+5k</button>
-                                <button type="button" onclick="addAmount(10000, 'amount')">+10k</button>
-                                <button type="button" onclick="addAmount(20000, 'amount')">+20k</button>
-                            </div>
+                        <h3 class="accordion-header" onclick="toggleAccordion('expense-form-container')">
+                            Nuevo Gasto <span id="expense-form-icon" class="accordion-icon">▼</span>
+                        </h3>
+                        <div id="expense-form-container" class="accordion-content">
+                            <form id="expense-form" style="margin-top: 15px;">
+                                <label>Descripción</label>
+                                <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value, 'new')">
+                                
+                                <label>Monto</label>
+                                <input type="number" id="amount" placeholder="0" required>
+                                <div class="quick-amounts">
+                                    <button type="button" onclick="addAmount(5000, 'amount')">+5k</button>
+                                    <button type="button" onclick="addAmount(10000, 'amount')">+10k</button>
+                                    <button type="button" onclick="addAmount(20000, 'amount')">+20k</button>
+                                </div>
 
-                            <label>Categorías</label>
-                            <div id="category-pills-new" class="tags-container"></div>
+                                <label>Categorías</label>
+                                <div id="category-pills-new" class="tags-container"></div>
 
-                            <label>Pagó</label>
-                            <select id="payer">
-                                <option value="Ari">Ari</option>
-                                <option value="Gi">Gi</option>
-                            </select>
+                                <label>Pagó</label>
+                                <select id="payer">
+                                    <option value="Ari">Ari</option>
+                                    <option value="Gi">Gi</option>
+                                </select>
 
-                            <button type="submit" id="submit-btn">Guardar Gasto</button>
-                        </form>
+                                <button type="submit" id="submit-btn">Guardar Gasto</button>
+                            </form>
+                        </div>
                     </div>
 
                     <!-- BALANCE Y GRÁFICO (DERECHA) -->
@@ -216,6 +234,9 @@
                             <span id="total-ari">Total Gastado Ari: $0</span>
                             <span id="total-gi">Total Gastado Gi: $0</span>
                         </div>
+                        
+                        <!-- NUEVO: TOTAL COMBINADO -->
+                        <div id="total-combined" class="total-combined">Total Gastado entre los dos: $0</div>
                         
                         <h4 style="margin: 15px 0 5px 0; color: var(--text-muted);">Proporción del Período</h4>
                         <div class="chart-container">
@@ -316,6 +337,7 @@
         let homePieChartInstance = null;
         let statsBarChartInstance = null;
 
+        // UI Functions
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobile-overlay');
@@ -328,16 +350,27 @@
             }
         }
 
+        function toggleAccordion(id) {
+            // Solo actuar si estamos en vista de celular
+            if (window.innerWidth <= 768) {
+                const content = document.getElementById(id);
+                const icon = document.getElementById(id.replace('-container', '-icon'));
+                content.classList.toggle('open');
+                icon.classList.toggle('open');
+            }
+        }
+
         function switchView(view) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.sidebar-menu li').forEach(el => el.classList.remove('active'));
             document.getElementById(`view-${view}`).classList.add('active');
             document.getElementById(`nav-${view}`).classList.add('active');
             
-            if (window.innerWidth <= 768) toggleSidebar(); // Cierra el sidebar en móvil al elegir
+            if (window.innerWidth <= 768) toggleSidebar(); 
             if (view === 'estadisticas') renderStatsChart();
         }
 
+        // Init and Auth
         supabaseClient.auth.onAuthStateChange((event, session) => {
             if (session) {
                 const email = session.user.email.toLowerCase();
@@ -387,6 +420,7 @@
             await Promise.all([loadConfig(), fetchExpenses()]);
         }
 
+        // Data processing
         function applyFilters() {
             renderList();
             calculateBalance();
@@ -417,6 +451,7 @@
             if (document.getElementById('view-estadisticas').classList.contains('active')) renderStatsChart();
         }
 
+        // Categories
         function renderCategoryPills(context) {
             const containerId = context === 'new' ? 'category-pills-new' : 'category-pills-edit';
             const selectedArray = context === 'new' ? selectedCategoriesNew : selectedCategoriesEdit;
@@ -505,6 +540,7 @@
             input.value = (parseInt(input.value) || 0) + val;
         };
 
+        // Crud
         document.getElementById('expense-form').onsubmit = async (e) => {
             e.preventDefault();
             if (selectedCategoriesNew.length === 0) { showToast("Seleccioná al menos una categoría", 'var(--danger)'); return; }
@@ -526,6 +562,12 @@
             document.getElementById('payer').value = currentUserAlias;
             selectedCategoriesNew = [];
             renderCategoryPills('new');
+            
+            // Cerrar el acordeón si está en celular
+            if (window.innerWidth <= 768) {
+                toggleAccordion('expense-form-container');
+            }
+            
             await fetchExpenses();
             btn.disabled = false;
         };
@@ -620,6 +662,7 @@
             }
         };
 
+        // Render functions
         const renderList = () => {
             const list = document.getElementById('expense-list');
             list.innerHTML = '';
@@ -685,6 +728,10 @@
 
             document.getElementById('total-ari').textContent = `Total Gastado Ari: $${aPaidTotal}`;
             document.getElementById('total-gi').textContent = `Total Gastado Gi: $${gPaidTotal}`;
+            
+            // Actualizar total combinado
+            const combined = aPaidTotal + gPaidTotal;
+            document.getElementById('total-combined').textContent = `Total Gastado entre los dos: $${combined}`;
             
             const bal = aPaidUnliquidated - aShouldUnliquidated;
             const display = document.getElementById('balance-display');
