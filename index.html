@@ -23,7 +23,7 @@
         body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-main); }
         .card { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         
-        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 6000; }
         .spinner { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; animation: pulse 1.5s infinite ease-in-out; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
 
@@ -66,7 +66,7 @@
         .tag-pill.selected { background: #e0e7ff; color: var(--primary); border-color: var(--primary); font-weight: bold; }
         .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; margin-right: 4px;}
         
-        .layout-container { display: flex; gap: 24px; flex-wrap: wrap; }
+        .layout-container { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px;}
         .left-panel { flex: 1; min-width: 320px; }
         .right-panel { flex: 2; min-width: 450px; }
         
@@ -99,11 +99,12 @@
         .view-section.active { display: block; }
         .chart-container { height: 250px; display: flex; justify-content: center; margin-bottom: 15px;}
 
+        /* MEDIA QUERIES PARA CELULAR */
         @media (max-width: 768px) {
-            #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 3000; transform: translateX(-100%); }
+            #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 4000; transform: translateX(-100%); width: 260px; box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
             #sidebar.open { transform: translateX(0); }
-            .hamburger-btn { display: block; }
-            .close-sidebar-btn { display: block; }
+            .hamburger-btn { display: block !important; padding: 5px 10px; }
+            .close-sidebar-btn { display: block !important; padding: 5px; }
             .layout-container { flex-direction: column; }
             .right-panel { min-width: 100%; }
         }
@@ -130,9 +131,10 @@
     </div>
 
     <div id="app-wrapper">
+        <!-- SIDEBAR -->
         <nav id="sidebar">
             <div class="sidebar-header">
-                <h3 style="margin:0;">Menú Priel</h3>
+                <h3 style="margin:0;">Control de Gastos Priel</h3>
                 <button class="close-sidebar-btn" onclick="toggleSidebar()">✖</button>
             </div>
             <ul class="sidebar-menu">
@@ -143,6 +145,7 @@
 
         <div id="main-content">
             <div class="header">
+                <!-- BOTÓN HAMBURGUESA -->
                 <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
                 
                 <!-- SELECTOR DE MES -->
@@ -165,67 +168,72 @@
             </div>
 
             <div id="view-gastos" class="view-section active">
-                <div class="card" style="text-align: center;">
-                    <img src="logo.jpg" alt="Logo" class="app-logo" style="width: 60px; height: 60px;">
-                    <h3 style="margin: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance Actual</h3>
-                    <div id="balance-display" class="balance">$0</div>
-                    <div class="totals">
-                        <span id="total-ari">Total Gastado Ari: $0</span>
-                        <span id="total-gi">Total Gastado Gi: $0</span>
-                    </div>
-                    
-                    <h4 style="margin: 15px 0 5px 0; color: var(--text-muted);">Proporción del Período</h4>
-                    <div class="chart-container">
-                        <canvas id="homePieChart"></canvas>
-                    </div>
-
-                    <button class="settle" onclick="settleUp()">Liquidar Cuentas</button>
-                </div>
-
+                
+                <!-- SECCIÓN SUPERIOR: FORMULARIO Y GRÁFICO -->
                 <div class="layout-container">
-                    <div class="left-panel">
-                        <div class="card">
-                            <h3>Nuevo Gasto</h3>
-                            <form id="expense-form">
-                                <label>Descripción</label>
-                                <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value, 'new')">
-                                
-                                <label>Monto</label>
-                                <input type="number" id="amount" placeholder="0" required>
-                                <div class="quick-amounts">
-                                    <button type="button" onclick="addAmount(5000, 'amount')">+5k</button>
-                                    <button type="button" onclick="addAmount(10000, 'amount')">+10k</button>
-                                    <button type="button" onclick="addAmount(20000, 'amount')">+20k</button>
-                                </div>
+                    
+                    <!-- NUEVO GASTO (IZQUIERDA) -->
+                    <div class="card left-panel" style="margin-bottom: 0;">
+                        <h3 style="margin-top:0;">Nuevo Gasto</h3>
+                        <form id="expense-form">
+                            <label>Descripción</label>
+                            <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value, 'new')">
+                            
+                            <label>Monto</label>
+                            <input type="number" id="amount" placeholder="0" required>
+                            <div class="quick-amounts">
+                                <button type="button" onclick="addAmount(5000, 'amount')">+5k</button>
+                                <button type="button" onclick="addAmount(10000, 'amount')">+10k</button>
+                                <button type="button" onclick="addAmount(20000, 'amount')">+20k</button>
+                            </div>
 
-                                <label>Categorías</label>
-                                <div id="category-pills-new" class="tags-container"></div>
+                            <label>Categorías</label>
+                            <div id="category-pills-new" class="tags-container"></div>
 
-                                <label>Pagó</label>
-                                <select id="payer">
-                                    <option value="Ari">Ari</option>
-                                    <option value="Gi">Gi</option>
-                                </select>
+                            <label>Pagó</label>
+                            <select id="payer">
+                                <option value="Ari">Ari</option>
+                                <option value="Gi">Gi</option>
+                            </select>
 
-                                <button type="submit" id="submit-btn">Guardar Gasto</button>
-                            </form>
-                        </div>
+                            <button type="submit" id="submit-btn">Guardar Gasto</button>
+                        </form>
                     </div>
 
-                    <div class="card right-panel">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                            <h3>Historial</h3>
+                    <!-- BALANCE Y GRÁFICO (DERECHA) -->
+                    <div class="card right-panel" style="text-align: center; margin-bottom: 0;">
+                        <h3 style="margin-top: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance Actual</h3>
+                        <div id="balance-display" class="balance">$0</div>
+                        <div class="totals">
+                            <span id="total-ari">Total Gastado Ari: $0</span>
+                            <span id="total-gi">Total Gastado Gi: $0</span>
                         </div>
-                        <div style="overflow-x:auto;">
-                            <table>
-                                <thead><tr><th>Gasto</th><th>Monto</th><th>Distribución</th><th></th></tr></thead>
-                                <tbody id="expense-list"></tbody>
-                            </table>
+                        
+                        <h4 style="margin: 15px 0 5px 0; color: var(--text-muted);">Proporción del Período</h4>
+                        <div class="chart-container">
+                            <canvas id="homePieChart"></canvas>
                         </div>
+
+                        <button class="settle" onclick="settleUp()">Liquidar Cuentas</button>
                     </div>
                 </div>
+
+                <!-- SECCIÓN INFERIOR: HISTORIAL -->
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <h3 style="margin:0;">Historial</h3>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead><tr><th>Gasto</th><th>Monto</th><th>Distribución</th><th></th></tr></thead>
+                            <tbody id="expense-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
 
+            <!-- VISTA ESTADÍSTICAS -->
             <div id="view-estadisticas" class="view-section">
                 <div class="card">
                     <h2>Histórico de Gastos</h2>
