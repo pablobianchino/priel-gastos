@@ -2,25 +2,36 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Control de Gastos Priel</title>
     
-    <!-- ENLACE AL MANIFEST PARA PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4f46e5">
     
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gastos Priel">
+    
     <link rel="icon" type="image/jpeg" href="logo.jpg">
+    <link rel="apple-touch-icon" href="logo.jpg">
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- REGISTRO DEL SERVICE WORKER -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js');
+          navigator.serviceWorker.register('sw.js')
+          .then(function(registration) {
+            console.log('SW registrado exitosamente.');
+          })
+          .catch(function(err) {
+            console.log('Fallo en el registro del SW:', err);
+          });
         });
       }
     </script>
+    
     <style>
         :root {
             --primary: #4f46e5;
@@ -34,8 +45,10 @@
             --border-color: #e5e7eb;
         }
 
+        * { box-sizing: border-box; } /* Asegura que los padding no ensanchen la pantalla */
+
         body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-main); }
-        .card { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .card { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%; }
         
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 6000; }
         .spinner { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; animation: pulse 1.5s infinite ease-in-out; }
@@ -54,7 +67,7 @@
         .sidebar-menu li.active { background: #e0e7ff; color: var(--primary); border-right: 4px solid var(--primary); }
         .close-sidebar-btn { display: none; background: none; border: none; font-size: 1.2em; cursor: pointer; color: var(--text-muted); width: auto; padding: 0;}
 
-        #main-content { flex: 1; padding: 20px; max-width: 1200px; margin: auto; overflow-x: hidden; }
+        #main-content { flex: 1; padding: 20px; max-width: 1200px; margin: auto; overflow-x: hidden; width: 100%; }
         
         .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 24px; gap: 12px; }
         .hamburger-btn { display: none; background: none; border: none; font-size: 1.8em; cursor: pointer; color: var(--text-main); width: auto; padding: 0; margin-right: auto; }
@@ -62,7 +75,7 @@
         .user-badge { background: #e0e7ff; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85em; }
         .app-logo { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 16px auto; border: 3px solid var(--border-color); }
 
-        input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1em; background-color: #f9fafb; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1em; background-color: #f9fafb; }
         input:focus { outline: none; border-color: var(--primary); background-color: #fff; }
 
         .quick-amounts { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -80,7 +93,7 @@
         .tag-pill.selected { background: #e0e7ff; color: var(--primary); border-color: var(--primary); font-weight: bold; }
         .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; margin-right: 4px;}
         
-        .layout-container { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px;}
+        .layout-container { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; width: 100%; }
         .left-panel { flex: 1; min-width: 320px; }
         .right-panel { flex: 2; min-width: 450px; }
         
@@ -98,48 +111,53 @@
         .totals { display: flex; justify-content: space-around; background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 10px; }
         .debt-text { font-weight: 600; display: inline-block; margin-top: 4px; }
         
-        /* Nuevo Total Combinado */
         .total-combined { font-size: 1.2em; font-weight: 700; color: var(--text-main); margin-top: 15px; margin-bottom: 20px; padding: 10px; background: #e0e7ff; border-radius: 8px; }
 
         #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(100px); transition: transform 0.3s; z-index: 5000; }
         #toast.show { transform: translateY(0); }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; backdrop-filter: blur(2px); }
-        .modal-content { background: white; max-width: 400px; margin: 5vh auto; padding: 24px; border-radius: 16px; max-height: 90vh; overflow-y: auto;}
+        .modal-content { background: white; max-width: 400px; margin: 5vh auto; padding: 24px; border-radius: 16px; max-height: 90vh; overflow-y: auto; width: 90%; }
         
         .filter-group { display: flex; gap: 8px; align-items: center; background: white; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
         .filter-group select { margin: 0; padding: 5px; font-size: 0.85em; width: auto; border: none; background: transparent; cursor: pointer; }
         
         .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f9fafb; margin-bottom: 4px; border-radius: 6px; }
 
-        .view-section { display: none; }
+        .view-section { display: none; width: 100%; }
         .view-section.active { display: block; }
         .chart-container { height: 250px; display: flex; justify-content: center; margin-bottom: 15px;}
 
-        /* ESTILOS DEL ACORDEÓN PARA NUEVO GASTO */
         .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-top: 0; margin-bottom: 0; }
         .accordion-icon { font-size: 1.2em; transition: transform 0.3s; }
         .accordion-icon.open { transform: rotate(180deg); }
-        .accordion-content { overflow: hidden; transition: max-height 0.3s ease-out; max-height: 1000px; /* Alto por defecto en escritorio */ }
+        .accordion-content { overflow: hidden; transition: max-height 0.3s ease-out; max-height: 1000px; }
 
         /* MEDIA QUERIES PARA CELULAR */
         @media (max-width: 768px) {
-            #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 4000; transform: translateX(-100%); width: 260px; box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
-            #sidebar.open { transform: translateX(0); }
+            #main-content { padding: 15px; }
+            .card { padding: 15px; }
+            .layout-container { gap: 15px; }
+            
+            /* Sombra solo activa cuando el panel está abierto */
+            #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 4000; transform: translateX(-100%); width: 260px; box-shadow: none; transition: transform 0.3s ease; }
+            #sidebar.open { transform: translateX(0); box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
+            
             .hamburger-btn { display: block !important; padding: 5px 10px; margin-right: auto !important; }
             .close-sidebar-btn { display: block !important; padding: 5px; }
             
-            .header { flex-wrap: wrap; justify-content: flex-end; }
+            .header { flex-wrap: wrap; justify-content: flex-end; margin-bottom: 15px; }
             .filter-group { order: 5; width: 100%; margin-top: 15px; margin-left: 0 !important; justify-content: center; background: #e5e7eb; }
             #logged-user-display { display: none; } 
             
             .layout-container { flex-direction: column; }
-            .right-panel { min-width: 100%; }
+            .right-panel, .left-panel { min-width: 100%; }
 
-            /* Comportamiento del Acordeón en Celular */
             .accordion-content { max-height: 0; padding-top: 0; }
             .accordion-content.open { max-height: 1000px; padding-top: 15px; }
-            .card.left-panel { padding-bottom: 15px; } /* Ajuste visual cuando está cerrado */
+            .card.left-panel { padding-bottom: 15px; }
+            
+            .totals { flex-direction: column; gap: 8px; }
         }
     </style>
 </head>
@@ -181,10 +199,8 @@
 
         <div id="main-content">
             <div class="header">
-                <!-- BOTÓN HAMBURGUESA -->
                 <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
                 
-                <!-- SELECTOR DE MES -->
                 <div class="filter-group" style="margin-right: auto; margin-left: 10px;">
                     <span style="font-size: 0.85em; font-weight: 600;">Mes:</span>
                     <select id="filter-month" onchange="applyFilters()">
@@ -205,10 +221,9 @@
 
             <div id="view-gastos" class="view-section active">
                 
-                <!-- SECCIÓN SUPERIOR: FORMULARIO Y GRÁFICO -->
                 <div class="layout-container">
                     
-                    <!-- NUEVO GASTO (IZQUIERDA - ACORDEÓN) -->
+                    <!-- NUEVO GASTO -->
                     <div class="card left-panel" style="margin-bottom: 0;">
                         <h3 class="accordion-header" onclick="toggleAccordion('expense-form-container')">
                             Nuevo Gasto <span id="expense-form-icon" class="accordion-icon">▼</span>
@@ -240,7 +255,7 @@
                         </div>
                     </div>
 
-                    <!-- BALANCE Y GRÁFICO (DERECHA) -->
+                    <!-- BALANCE -->
                     <div class="card right-panel" style="text-align: center; margin-bottom: 0;">
                         <h3 style="margin-top: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance Actual</h3>
                         <div id="balance-display" class="balance">$0</div>
@@ -249,7 +264,6 @@
                             <span id="total-gi">Total Gastado Gi: $0</span>
                         </div>
                         
-                        <!-- NUEVO: TOTAL COMBINADO -->
                         <div id="total-combined" class="total-combined">Total Gastado entre los dos: $0</div>
                         
                         <h4 style="margin: 15px 0 5px 0; color: var(--text-muted);">Proporción del Período</h4>
@@ -261,7 +275,7 @@
                     </div>
                 </div>
 
-                <!-- SECCIÓN INFERIOR: HISTORIAL -->
+                <!-- HISTORIAL -->
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                         <h3 style="margin:0;">Historial</h3>
@@ -276,7 +290,7 @@
 
             </div>
 
-            <!-- VISTA ESTADÍSTICAS -->
+            <!-- ESTADÍSTICAS -->
             <div id="view-estadisticas" class="view-section">
                 <div class="card">
                     <h2>Histórico de Gastos</h2>
@@ -351,7 +365,6 @@
         let homePieChartInstance = null;
         let statsBarChartInstance = null;
 
-        // UI Functions
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobile-overlay');
@@ -365,7 +378,6 @@
         }
 
         function toggleAccordion(id) {
-            // Solo actuar si estamos en vista de celular
             if (window.innerWidth <= 768) {
                 const content = document.getElementById(id);
                 const icon = document.getElementById(id.replace('-container', '-icon'));
@@ -384,7 +396,6 @@
             if (view === 'estadisticas') renderStatsChart();
         }
 
-        // Init and Auth
         supabaseClient.auth.onAuthStateChange((event, session) => {
             if (session) {
                 const email = session.user.email.toLowerCase();
@@ -434,7 +445,6 @@
             await Promise.all([loadConfig(), fetchExpenses()]);
         }
 
-        // Data processing
         function applyFilters() {
             renderList();
             calculateBalance();
@@ -465,7 +475,6 @@
             if (document.getElementById('view-estadisticas').classList.contains('active')) renderStatsChart();
         }
 
-        // Categories
         function renderCategoryPills(context) {
             const containerId = context === 'new' ? 'category-pills-new' : 'category-pills-edit';
             const selectedArray = context === 'new' ? selectedCategoriesNew : selectedCategoriesEdit;
@@ -554,7 +563,6 @@
             input.value = (parseInt(input.value) || 0) + val;
         };
 
-        // Crud
         document.getElementById('expense-form').onsubmit = async (e) => {
             e.preventDefault();
             if (selectedCategoriesNew.length === 0) { showToast("Seleccioná al menos una categoría", 'var(--danger)'); return; }
@@ -577,7 +585,6 @@
             selectedCategoriesNew = [];
             renderCategoryPills('new');
             
-            // Cerrar el acordeón si está en celular
             if (window.innerWidth <= 768) {
                 toggleAccordion('expense-form-container');
             }
@@ -676,7 +683,6 @@
             }
         };
 
-        // Render functions
         const renderList = () => {
             const list = document.getElementById('expense-list');
             list.innerHTML = '';
@@ -743,7 +749,6 @@
             document.getElementById('total-ari').textContent = `Total Gastado Ari: $${aPaidTotal}`;
             document.getElementById('total-gi').textContent = `Total Gastado Gi: $${gPaidTotal}`;
             
-            // Actualizar total combinado
             const combined = aPaidTotal + gPaidTotal;
             document.getElementById('total-combined').textContent = `Total Gastado entre los dos: $${combined}`;
             
