@@ -45,7 +45,7 @@
             --border-color: #e5e7eb;
         }
 
-        * { box-sizing: border-box; } /* Asegura que los padding no ensanchen la pantalla */
+        * { box-sizing: border-box; }
 
         body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-main); }
         .card { background: var(--card-bg); padding: 24px; margin-bottom: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%; }
@@ -112,6 +112,7 @@
         .debt-text { font-weight: 600; display: inline-block; margin-top: 4px; }
         
         .total-combined { font-size: 1.2em; font-weight: 700; color: var(--text-main); margin-top: 15px; margin-bottom: 20px; padding: 10px; background: #e0e7ff; border-radius: 8px; }
+        .global-warning { display: none; background: #fee2e2; color: var(--danger); padding: 12px; border-radius: 8px; font-size: 0.9em; font-weight: 600; margin-bottom: 15px; border: 1px solid #f87171; }
 
         #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(100px); transition: transform 0.3s; z-index: 5000; }
         #toast.show { transform: translateY(0); }
@@ -133,13 +134,11 @@
         .accordion-icon.open { transform: rotate(180deg); }
         .accordion-content { overflow: hidden; transition: max-height 0.3s ease-out; max-height: 1000px; }
 
-        /* MEDIA QUERIES PARA CELULAR */
         @media (max-width: 768px) {
             #main-content { padding: 15px; }
             .card { padding: 15px; }
             .layout-container { gap: 15px; }
             
-            /* Sombra solo activa cuando el panel está abierto */
             #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 4000; transform: translateX(-100%); width: 260px; box-shadow: none; transition: transform 0.3s ease; }
             #sidebar.open { transform: translateX(0); box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
             
@@ -170,7 +169,6 @@
         <h3 style="color: var(--text-muted);">Ingresando a Control de Gastos Priel</h3>
     </div>
 
-    <!-- OVERLAY PARA MENÚ EN MÓVIL -->
     <div id="mobile-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3999;" onclick="toggleSidebar()"></div>
 
     <div id="login-container" class="card">
@@ -185,7 +183,6 @@
     </div>
 
     <div id="app-wrapper">
-        <!-- SIDEBAR -->
         <nav id="sidebar">
             <div class="sidebar-header">
                 <h3 style="margin:0;">Control de Gastos Priel</h3>
@@ -230,6 +227,9 @@
                         </h3>
                         <div id="expense-form-container" class="accordion-content">
                             <form id="expense-form" style="margin-top: 15px;">
+                                <label>Fecha de Carga</label>
+                                <input type="date" id="date" required>
+
                                 <label>Descripción</label>
                                 <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value, 'new')">
                                 
@@ -257,7 +257,9 @@
 
                     <!-- BALANCE -->
                     <div class="card right-panel" style="text-align: center; margin-bottom: 0;">
-                        <h3 style="margin-top: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance Actual</h3>
+                        <div id="global-debt-warning" class="global-warning"></div>
+
+                        <h3 style="margin-top: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance del Mes</h3>
                         <div id="balance-display" class="balance">$0</div>
                         <div class="totals">
                             <span id="total-ari">Total Gastado Ari: $0</span>
@@ -271,7 +273,7 @@
                             <canvas id="homePieChart"></canvas>
                         </div>
 
-                        <button class="settle" onclick="settleUp()">Liquidar Cuentas</button>
+                        <button class="settle" onclick="settleUp()">Liquidar Cuentas del Mes</button>
                     </div>
                 </div>
 
@@ -309,6 +311,9 @@
             <h3>Editar Gasto</h3>
             <form id="edit-expense-form">
                 <input type="hidden" id="edit-id">
+                <label>Fecha de Carga</label>
+                <input type="date" id="edit-date" required>
+                
                 <label>Descripción</label>
                 <input type="text" id="edit-desc" required oninput="smartSuggest(this.value, 'edit')">
                 
@@ -442,6 +447,13 @@
 
         async function initApp() {
             document.getElementById('filter-month').value = new Date().getMonth().toString();
+            
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            document.getElementById('date').value = `${yyyy}-${mm}-${dd}`;
+            
             await Promise.all([loadConfig(), fetchExpenses()]);
         }
 
@@ -568,12 +580,17 @@
             if (selectedCategoriesNew.length === 0) { showToast("Seleccioná al menos una categoría", 'var(--danger)'); return; }
 
             const btn = document.getElementById('submit-btn');
+            
+            const dateInput = document.getElementById('date').value;
+            const dateObj = new Date(`${dateInput}T12:00:00-03:00`);
+
             const data = {
                 descripcion: document.getElementById('desc').value,
                 monto: Math.round(document.getElementById('amount').value),
                 pagador: document.getElementById('payer').value,
                 categoria: selectedCategoriesNew.join(', '),
-                ari_pct: defaultAriPct
+                ari_pct: defaultAriPct,
+                created_at: dateObj.toISOString()
             };
 
             btn.disabled = true;
@@ -582,6 +599,10 @@
             showToast("Gasto guardado");
             document.getElementById('expense-form').reset();
             document.getElementById('payer').value = currentUserAlias;
+            
+            const now = new Date();
+            document.getElementById('date').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            
             selectedCategoriesNew = [];
             renderCategoryPills('new');
             
@@ -601,12 +622,16 @@
             const id = document.getElementById('edit-id').value;
             const ex = expenses.find(x => x.id === id);
             
+            const dateInput = document.getElementById('edit-date').value;
+            const dateObj = new Date(`${dateInput}T12:00:00-03:00`);
+
             const data = {
                 descripcion: document.getElementById('edit-desc').value,
                 monto: Math.round(document.getElementById('edit-amount').value),
                 pagador: document.getElementById('edit-payer').value,
                 categoria: selectedCategoriesEdit.join(', '),
-                ari_pct: ex.ari_pct 
+                ari_pct: ex.ari_pct,
+                created_at: dateObj.toISOString()
             };
 
             btn.disabled = true;
@@ -624,6 +649,12 @@
             document.getElementById('edit-desc').value = ex.descripcion;
             document.getElementById('edit-amount').value = ex.monto;
             document.getElementById('edit-payer').value = ex.pagador;
+            
+            const d = new Date(ex.created_at);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            document.getElementById('edit-date').value = `${yyyy}-${mm}-${dd}`;
             
             selectedCategoriesEdit = ex.categoria.split(', ');
             renderCategoryPills('edit');
@@ -666,6 +697,8 @@
                 let payer = bal > 0 ? 'Gi' : 'Ari';
                 let amount = Math.abs(bal);
                 let ari_pct = bal > 0 ? 0 : 100; 
+                
+                const now = new Date();
 
                 const settlementData = {
                     descripcion: 'Pago por Liquidación de Deudas',
@@ -673,7 +706,8 @@
                     pagador: payer,
                     categoria: 'Liquidación',
                     ari_pct: ari_pct,
-                    liquidado: true 
+                    liquidado: true,
+                    created_at: now.toISOString()
                 };
 
                 await supabaseClient.from('gastos').insert([settlementData]);
@@ -690,7 +724,7 @@
             getFilteredExpenses().forEach(ex => {
                 const ariS = Math.round(ex.monto * (ex.ari_pct / 100));
                 const giS = ex.monto - ariS;
-                const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
+                const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short', year:'numeric'});
                 
                 let debtText = '';
                 if (ex.liquidado) {
@@ -706,6 +740,9 @@
                 }
 
                 const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
+                
+                const payerColor = ex.pagador === 'Ari' ? 'background:#e0e7ff; color:#4f46e5;' : 'background:#fce7f3; color:#ec4899;';
+                const payerBadge = `<span style="display:inline-block; margin-top:4px; margin-bottom:4px; font-size:0.75em; font-weight:bold; padding:2px 8px; border-radius:6px; ${payerColor}">Pagó: ${ex.pagador}</span>`;
 
                 const tr = document.createElement('tr');
                 tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
@@ -713,6 +750,7 @@
                     <td>
                         <div style="font-size:0.7em; color:var(--text-muted)">${date}</div>
                         <div style="font-weight:600">${ex.descripcion}</div>
+                        ${payerBadge}<br>
                         ${catBadges}
                     </td>
                     <td style="font-weight:700">$${ex.monto}</td>
@@ -764,6 +802,28 @@
             } else { 
                 display.textContent = `Saldados $0`; 
                 display.style.color = 'var(--text-main)'; 
+            }
+
+            let aGlobalPaidUnliq = 0, aGlobalShouldUnliq = 0;
+            expenses.forEach(ex => {
+                if (!ex.liquidado) {
+                    const mTotal = Number(ex.monto);
+                    if (ex.pagador === 'Ari') aGlobalPaidUnliq += mTotal;
+                    aGlobalShouldUnliq += Math.round(mTotal * (ex.ari_pct / 100));
+                }
+            });
+
+            const globalBal = aGlobalPaidUnliq - aGlobalShouldUnliq;
+            const warningDiv = document.getElementById('global-debt-warning');
+            
+            if (globalBal !== 0 && globalBal !== bal) {
+                let txt = '';
+                if (globalBal > 0) txt = `⚠️ Atención: Contando meses anteriores, Gi debe a Ari en total $${globalBal}`;
+                else txt = `⚠️ Atención: Contando meses anteriores, Ari debe a Gi en total $${Math.abs(globalBal)}`;
+                warningDiv.textContent = txt;
+                warningDiv.style.display = 'block';
+            } else {
+                warningDiv.style.display = 'none';
             }
 
             return bal;
