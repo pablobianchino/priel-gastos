@@ -784,10 +784,13 @@
                 }
             });
 
-            document.getElementById('total-ari').textContent = `Total Gastado Ari: $${aPaidTotal}`;
-            document.getElementById('total-gi').textContent = `Total Gastado Gi: $${gPaidTotal}`;
-            
             const combined = aPaidTotal + gPaidTotal;
+            const pctAri = combined > 0 ? Math.round((aPaidTotal / combined) * 100) : 0;
+            const pctGi = combined > 0 ? 100 - pctAri : 0;
+
+            document.getElementById('total-ari').textContent = `Total Gastado Ari: $${aPaidTotal} (${pctAri}%)`;
+            document.getElementById('total-gi').textContent = `Total Gastado Gi: $${gPaidTotal} (${pctGi}%)`;
+            
             document.getElementById('total-combined').textContent = `Total Gastado entre los dos: $${combined}`;
             
             const bal = aPaidUnliquidated - aShouldUnliquidated;
@@ -839,10 +842,14 @@
                 if (ex.pagador === 'Ari') ariM += montoTotal; else giM += montoTotal;
             });
 
+            const combinedChart = ariM + giM;
+            const pAri = combinedChart > 0 ? Math.round((ariM / combinedChart) * 100) : 0;
+            const pGi = combinedChart > 0 ? 100 - pAri : 0;
+
             homePieChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Ari', 'Gi'],
+                    labels: [`Ari (${pAri}%)`, `Gi (${pGi}%)`],
                     datasets: [{ data: [ariM, giM], backgroundColor: ['#4f46e5', '#ec4899'] }]
                 },
                 options: { 
