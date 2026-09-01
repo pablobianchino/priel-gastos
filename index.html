@@ -27,8 +27,8 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // El parámetro ?v=2.0 fuerza al navegador a actualizar el Service Worker en cada nueva versión
-          navigator.serviceWorker.register('sw.js?v=2.0')
+          // El parámetro ?v=2.1 fuerza al navegador a actualizar el Service Worker
+          navigator.serviceWorker.register('sw.js?v=2.1')
           .then(function(registration) {
             console.log('SW registrado exitosamente.');
           })
@@ -174,7 +174,7 @@
 <body>
 
     <!-- INDICADOR DE VERSIÓN -->
-    <div class="version-badge">v2.0</div>
+    <div class="version-badge">v2.1</div>
 
     <div id="toast"></div>
 
@@ -320,8 +320,8 @@
             <!-- ESTADÍSTICAS -->
             <div id="view-estadisticas" class="view-section">
                 <div class="card">
-                    <h2>Histórico de Gastos</h2>
-                    <p style="color:var(--text-muted); margin-bottom: 20px;">Comparativa mensual del total gastado por cada uno (incluye todo el histórico).</p>
+                    <h2>Histórico de Gastos (Real)</h2>
+                    <p style="color:var(--text-muted); margin-bottom: 20px;">Comparativa mensual del gasto real neto por cada uno (excluye liquidaciones).</p>
                     <div style="height: 400px; width: 100%;">
                         <canvas id="statsBarChart"></canvas>
                     </div>
@@ -1034,9 +1034,15 @@
             const giData = new Array(12).fill(0);
 
             expenses.forEach(ex => {
-                const m = new Date(ex.created_at).getMonth();
-                const montoTotal = Number(ex.monto);
-                if (ex.pagador === 'Ari') ariData[m] += montoTotal; else giData[m] += montoTotal;
+                if (!ex.categoria.includes('Liquidación')) {
+                    const m = new Date(ex.created_at).getMonth();
+                    const montoTotal = Number(ex.monto);
+                    const ariNet = Math.round(montoTotal * (ex.ari_pct / 100));
+                    const giNet = montoTotal - ariNet;
+                    
+                    ariData[m] += ariNet;
+                    giData[m] += giNet;
+                }
             });
 
             statsBarChartInstance = new Chart(ctx, {
