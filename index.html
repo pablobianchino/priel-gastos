@@ -27,8 +27,8 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // El parámetro ?v=2.1 fuerza al navegador a actualizar el Service Worker
-          navigator.serviceWorker.register('sw.js?v=2.1')
+          // El parámetro ?v=2.4 fuerza al navegador a actualizar el Service Worker
+          navigator.serviceWorker.register('sw.js?v=2.4')
           .then(function(registration) {
             console.log('SW registrado exitosamente.');
           })
@@ -174,7 +174,7 @@
 <body>
 
     <!-- INDICADOR DE VERSIÓN -->
-    <div class="version-badge">v2.1</div>
+    <div class="version-badge">v2.4</div>
 
     <div id="toast"></div>
 
@@ -248,7 +248,8 @@
                                 <input type="text" id="desc" placeholder="¿En qué gastaron?" required oninput="smartSuggest(this.value, 'new')">
                                 
                                 <label>Monto</label>
-                                <input type="number" id="amount" placeholder="0" required>
+                                <input type="text" inputmode="decimal" id="amount" placeholder="$ 0,00" required oninput="formatCurrency(this)">
+                                
                                 <div class="quick-amounts">
                                     <button type="button" onclick="addAmount(5000, 'amount')">+5k</button>
                                     <button type="button" onclick="addAmount(10000, 'amount')">+10k</button>
@@ -274,7 +275,7 @@
                         <div id="global-debt-warning" class="global-warning"></div>
 
                         <h3 style="margin-top: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance del Mes</h3>
-                        <div id="balance-display" class="balance">$0</div>
+                        <div id="balance-display" class="balance">$0,00</div>
                         
                         <!-- GASTO REAL (NETO) -->
                         <h4 style="margin: 25px 0 5px 0; color: var(--text-muted);">Gasto Real Neto (Excluye Liquidaciones)</h4>
@@ -326,6 +327,15 @@
                         <canvas id="statsBarChart"></canvas>
                     </div>
                 </div>
+
+                <!-- GASTOS POR CATEGORÍA -->
+                <div class="card">
+                    <h2>Gastos por Categoría</h2>
+                    <p style="color:var(--text-muted); margin-bottom: 20px;">Distribución del total gastado en el mes seleccionado (excluye liquidaciones).</p>
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -356,7 +366,7 @@
                 <input type="text" id="edit-desc" required oninput="smartSuggest(this.value, 'edit')">
                 
                 <label>Monto</label>
-                <input type="number" id="edit-amount" required>
+                <input type="text" inputmode="decimal" id="edit-amount" placeholder="$ 0,00" required oninput="formatCurrency(this)">
 
                 <label>Categorías</label>
                 <div id="category-pills-edit" class="tags-container"></div>
@@ -408,6 +418,50 @@
         let homePieChartInstance = null;
         let netPieChartInstance = null;
         let statsBarChartInstance = null;
+        let categoryChartInstance = null;
+
+        // --- FUNCIONES DE FORMATEO DE MONEDA ---
+        function formatCurrency(input) {
+            // Elimina todo lo que no sea dígito o coma
+            let value = input.value.replace(/[^0-9,]/g, '');
+            if (!value) {
+                input.value = '';
+                return;
+            }
+            
+            // Permitir solo una coma dividiendo en partes
+            const parts = value.split(',');
+            let intPart = parts[0];
+            
+            // Eliminar ceros a la izquierda, a menos que sea un solo '0'
+            if (intPart.length > 1) {
+                intPart = intPart.replace(/^0+/, '');
+                if(intPart === '') intPart = '0';
+            }
+            
+            // Agregar puntos de miles
+            intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            
+            let result = '$ ' + intPart;
+            // Si hay decimales (se tipeó una coma), permitir hasta 2 dígitos
+            if (parts.length > 1) {
+                result += ',' + parts[1].substring(0, 2);
+            }
+            
+            input.value = result;
+        }
+
+        function parseCurrency(str) {
+            if (!str) return 0;
+            // Eliminar signos, espacios y puntos, cambiar coma por punto
+            let clean = str.replace(/[^0-9,]/g, '').replace(',', '.');
+            return parseFloat(clean) || 0;
+        }
+
+        function formatDisplayCurrency(num) {
+            return '$ ' + Number(num).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        }
+        // ---------------------------------------
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -500,6 +554,9 @@
             renderList();
             calculateBalance();
             renderHomeChart();
+            if (document.getElementById('view-estadisticas').classList.contains('active')) {
+                renderStatsChart();
+            }
         }
 
         function getFilteredExpenses() {
@@ -611,7 +668,9 @@
 
         const addAmount = (val, inputId) => {
             const input = document.getElementById(inputId);
-            input.value = (parseInt(input.value) || 0) + val;
+            let current = parseCurrency(input.value);
+            current += val;
+            input.value = formatDisplayCurrency(current);
         };
 
         document.getElementById('expense-form').onsubmit = async (e) => {
@@ -623,9 +682,12 @@
             const dateInput = document.getElementById('date').value;
             const dateObj = new Date(`${dateInput}T12:00:00-03:00`);
 
+            // Parsear el string del formato nuevo
+            const finalAmount = parseCurrency(document.getElementById('amount').value);
+
             const data = {
                 descripcion: document.getElementById('desc').value,
-                monto: Math.round(document.getElementById('amount').value),
+                monto: finalAmount,
                 pagador: document.getElementById('payer').value,
                 categoria: selectedCategoriesNew.join(', '),
                 ari_pct: defaultAriPct,
@@ -664,9 +726,11 @@
             const dateInput = document.getElementById('edit-date').value;
             const dateObj = new Date(`${dateInput}T12:00:00-03:00`);
 
+            const finalAmount = parseCurrency(document.getElementById('edit-amount').value);
+
             const data = {
                 descripcion: document.getElementById('edit-desc').value,
-                monto: Math.round(document.getElementById('edit-amount').value),
+                monto: finalAmount,
                 pagador: document.getElementById('edit-payer').value,
                 categoria: selectedCategoriesEdit.join(', '),
                 ari_pct: ex.ari_pct,
@@ -686,7 +750,10 @@
             const ex = expenses.find(x => x.id === id);
             document.getElementById('edit-id').value = ex.id;
             document.getElementById('edit-desc').value = ex.descripcion;
-            document.getElementById('edit-amount').value = ex.monto;
+            
+            // Cargar monto formateado para edición
+            document.getElementById('edit-amount').value = formatDisplayCurrency(ex.monto);
+            
             document.getElementById('edit-payer').value = ex.pagador;
             
             const d = new Date(ex.created_at);
@@ -714,7 +781,7 @@
         };
 
         const settleUp = async () => {
-            const bal = calculateBalance();
+            const bal = calculateBalance(true); // Pasar true para obtener solo el valor de deuda
             
             if (bal === 0) {
                 showToast("No hay deudas para liquidar en este mes", 'var(--text-muted)');
@@ -737,21 +804,26 @@
                 let amount = Math.abs(bal);
                 let ari_pct = bal > 0 ? 0 : 100; 
                 
-                const now = new Date();
+                let settleDate = new Date();
+                if (filtered.length > 0) {
+                    const dates = filtered.map(e => new Date(e.created_at).getTime());
+                    const maxDate = new Date(Math.max(...dates));
+                    settleDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0, 23, 59, 59);
+                }
 
                 const settlementData = {
                     descripcion: 'Pago por Liquidación de Deudas',
-                    monto: Math.round(amount),
+                    monto: amount,
                     pagador: payer,
                     categoria: 'Liquidación',
                     ari_pct: ari_pct,
                     liquidado: true,
-                    created_at: now.toISOString()
+                    created_at: settleDate.toISOString()
                 };
 
                 await supabaseClient.from('gastos').insert([settlementData]);
 
-                showToast("Deudas liquidadas y pago registrado");
+                showToast("Deudas liquidadas y pago registrado retroactivo");
                 fetchExpenses();
             }
         };
@@ -763,21 +835,39 @@
             let total = 0;
 
             getFilteredExpenses().forEach(ex => {
-                if (ex.pagador === person) {
-                    const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
+                const montoTotal = Number(ex.monto);
+                const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
+                
+                if (ex.categoria.includes('Liquidación')) {
+                    if (ex.pagador === person) {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = "1px solid var(--border-color)";
+                        tr.innerHTML = `<td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td>
+                                        <td style="font-weight:600; padding: 8px;">Pago de Liquidación</td>
+                                        <td style="font-weight:700; text-align:right; padding: 8px 0; color: var(--danger);">+${formatDisplayCurrency(montoTotal)}</td>`;
+                        list.appendChild(tr);
+                        total += montoTotal;
+                    } else {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = "1px solid var(--border-color)";
+                        tr.innerHTML = `<td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td>
+                                        <td style="font-weight:600; padding: 8px;">Recupero de Dinero</td>
+                                        <td style="font-weight:700; text-align:right; padding: 8px 0; color: var(--success);">${formatDisplayCurrency(-montoTotal)}</td>`;
+                        list.appendChild(tr);
+                        total -= montoTotal;
+                    }
+                } else if (ex.pagador === person) {
                     const tr = document.createElement('tr');
                     tr.style.borderBottom = "1px solid var(--border-color)";
-                    tr.innerHTML = `
-                        <td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td>
-                        <td style="font-weight:600; padding: 8px;">${ex.descripcion}</td>
-                        <td style="font-weight:700; text-align:right; padding: 8px 0;">$${ex.monto}</td>
-                    `;
+                    tr.innerHTML = `<td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td>
+                                    <td style="font-weight:600; padding: 8px;">${ex.descripcion}</td>
+                                    <td style="font-weight:700; text-align:right; padding: 8px 0;">${formatDisplayCurrency(montoTotal)}</td>`;
                     list.appendChild(tr);
-                    total += Number(ex.monto);
+                    total += montoTotal;
                 }
             });
 
-            document.getElementById('breakdown-title').textContent = `Desglose Flujo de Caja: ${person} adelantó $${total}`;
+            document.getElementById('breakdown-title').textContent = `Desglose Flujo de Caja: ${person} adelantó ${formatDisplayCurrency(total)}`;
             document.getElementById('breakdown-modal').style.display = 'block';
         };
 
@@ -792,9 +882,9 @@
                     let netAmount = 0;
                     
                     if (person === 'Ari') {
-                        netAmount = Math.round(amount * (ex.ari_pct / 100));
+                        netAmount = amount * (ex.ari_pct / 100);
                     } else {
-                        netAmount = amount - Math.round(amount * (ex.ari_pct / 100));
+                        netAmount = amount - (amount * (ex.ari_pct / 100));
                     }
 
                     if (netAmount > 0) {
@@ -804,7 +894,7 @@
                         tr.innerHTML = `
                             <td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td>
                             <td style="font-weight:600; padding: 8px;">${ex.descripcion}</td>
-                            <td style="font-weight:700; text-align:right; padding: 8px 0;">$${netAmount}</td>
+                            <td style="font-weight:700; text-align:right; padding: 8px 0;">${formatDisplayCurrency(netAmount)}</td>
                         `;
                         list.appendChild(tr);
                         total += netAmount;
@@ -812,7 +902,7 @@
                 }
             });
 
-            document.getElementById('breakdown-title').textContent = `Desglose Gasto Real: ${person} consumió $${total}`;
+            document.getElementById('breakdown-title').textContent = `Desglose Gasto Real: ${person} consumió ${formatDisplayCurrency(total)}`;
             document.getElementById('breakdown-modal').style.display = 'block';
         };
 
@@ -825,8 +915,8 @@
             list.innerHTML = '';
 
             getFilteredExpenses().forEach(ex => {
-                const ariS = Math.round(ex.monto * (ex.ari_pct / 100));
-                const giS = ex.monto - ariS;
+                const ariS = Number(ex.monto) * (ex.ari_pct / 100);
+                const giS = Number(ex.monto) - ariS;
                 const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short', year:'numeric'});
                 
                 let debtText = '';
@@ -836,30 +926,40 @@
                     debtText = `<span class="debt-text" style="color: var(--text-muted);">Sin deuda generada</span>`;
                 } else if (ex.pagador === 'Ari') {
                     const color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)';
-                    debtText = `<span class="debt-text" style="color: ${color};">Gi debe a Ari: $${giS}</span>`;
+                    debtText = `<span class="debt-text" style="color: ${color};">Gi debe a Ari: ${formatDisplayCurrency(giS)}</span>`;
                 } else {
                     const color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)';
-                    debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: $${ariS}</span>`;
+                    debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: ${formatDisplayCurrency(ariS)}</span>`;
                 }
 
                 const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
                 
-                const payerColor = ex.pagador === 'Ari' ? 'background:#e0e7ff; color:#4f46e5;' : 'background:#fce7f3; color:#ec4899;';
-                const payerBadge = `<span style="display:inline-block; margin-top:4px; margin-bottom:4px; font-size:0.75em; font-weight:bold; padding:2px 8px; border-radius:6px; ${payerColor}">Pagó: ${ex.pagador}</span>`;
+                const isLiquidacion = ex.categoria.includes('Liquidación');
+                let displayDesc = ex.descripcion;
+                let payerBadge = '';
+
+                if (isLiquidacion) {
+                    const receiver = ex.pagador === 'Ari' ? 'Gi' : 'Ari';
+                    displayDesc = `Liquidación (Transferencia de ${ex.pagador} a ${receiver})`;
+                    payerBadge = `<span style="display:inline-block; margin-top:4px; margin-bottom:4px; font-size:0.75em; font-weight:bold; padding:2px 8px; border-radius:6px; background:#e5e7eb; color:#374151;">Movimiento de Cuentas</span>`;
+                } else {
+                    const payerColor = ex.pagador === 'Ari' ? 'background:#e0e7ff; color:#4f46e5;' : 'background:#fce7f3; color:#ec4899;';
+                    payerBadge = `<span style="display:inline-block; margin-top:4px; margin-bottom:4px; font-size:0.75em; font-weight:bold; padding:2px 8px; border-radius:6px; ${payerColor}">Pagó: ${ex.pagador}</span>`;
+                }
 
                 const tr = document.createElement('tr');
                 tr.setAttribute('onclick', `if(!event.target.closest('button')) editExpense('${ex.id}')`);
                 tr.innerHTML = `
                     <td>
                         <div style="font-size:0.7em; color:var(--text-muted)">${date}</div>
-                        <div style="font-weight:600">${ex.descripcion}</div>
+                        <div style="font-weight:600">${displayDesc}</div>
                         ${payerBadge}<br>
                         ${catBadges}
                     </td>
-                    <td style="font-weight:700">$${ex.monto}</td>
+                    <td style="font-weight:700">${formatDisplayCurrency(ex.monto)}</td>
                     <td style="font-size:0.9em; color:var(--text-muted)">
-                        Ari: $${ariS} (${ex.ari_pct}%)<br>
-                        Gi: $${giS} (${100 - ex.ari_pct}%)<br>
+                        Ari: ${formatDisplayCurrency(ariS)} (${ex.ari_pct}%)<br>
+                        Gi: ${formatDisplayCurrency(giS)} (${100 - ex.ari_pct}%)<br>
                         ${debtText}
                     </td>
                     <td style="text-align: right; vertical-align: middle;">
@@ -870,7 +970,7 @@
             });
         };
 
-        const calculateBalance = () => {
+        const calculateBalance = (returnValueOnly = false) => {
             let aPaidTotal = 0, gPaidTotal = 0; 
             let aPaidUnliquidated = 0, aShouldUnliquidated = 0;
             let aNetTotal = 0, gNetTotal = 0;
@@ -880,49 +980,61 @@
             filtered.forEach(ex => {
                 const montoTotal = Number(ex.monto);
                 
-                // Flujo de Caja (Incluye liquidaciones)
-                if (ex.pagador === 'Ari') aPaidTotal += montoTotal; else gPaidTotal += montoTotal;
+                // Flujo de Caja (Liquidación funciona como transferencia)
+                if (ex.categoria.includes('Liquidación')) {
+                    if (ex.pagador === 'Ari') {
+                        aPaidTotal += montoTotal; // Ari pagó
+                        gPaidTotal -= montoTotal; // Gi recibió (baja su flujo adelantado)
+                    } else {
+                        gPaidTotal += montoTotal; // Gi pagó
+                        aPaidTotal -= montoTotal; // Ari recibió (baja su flujo adelantado)
+                    }
+                } else {
+                    if (ex.pagador === 'Ari') aPaidTotal += montoTotal; else gPaidTotal += montoTotal;
+                }
 
                 // Deudas no liquidadas
                 if (!ex.liquidado) {
                     if (ex.pagador === 'Ari') aPaidUnliquidated += montoTotal;
-                    aShouldUnliquidated += Math.round(montoTotal * (ex.ari_pct / 100));
+                    aShouldUnliquidated += (montoTotal * (ex.ari_pct / 100));
                 }
 
                 // Gasto Real (Neto) excluyendo liquidaciones
                 if (!ex.categoria.includes('Liquidación')) {
-                    aNetTotal += Math.round(montoTotal * (ex.ari_pct / 100));
-                    gNetTotal += montoTotal - Math.round(montoTotal * (ex.ari_pct / 100));
+                    aNetTotal += (montoTotal * (ex.ari_pct / 100));
+                    gNetTotal += montoTotal - (montoTotal * (ex.ari_pct / 100));
                 }
             });
+
+            const bal = aPaidUnliquidated - aShouldUnliquidated;
+            if (returnValueOnly) return bal;
 
             // Actualizar Textos Flujo de Caja
             const combinedCash = aPaidTotal + gPaidTotal;
             const pctCashAri = combinedCash > 0 ? Math.round((aPaidTotal / combinedCash) * 100) : 0;
             const pctCashGi = combinedCash > 0 ? 100 - pctCashAri : 0;
-            document.getElementById('cash-ari').textContent = `Adelantó Ari: $${aPaidTotal} (${pctCashAri}%)`;
-            document.getElementById('cash-gi').textContent = `Adelantó Gi: $${gPaidTotal} (${pctCashGi}%)`;
+            document.getElementById('cash-ari').textContent = `Adelantó Ari: ${formatDisplayCurrency(aPaidTotal)} (${pctCashAri}%)`;
+            document.getElementById('cash-gi').textContent = `Adelantó Gi: ${formatDisplayCurrency(gPaidTotal)} (${pctCashGi}%)`;
 
             // Actualizar Textos Gasto Neto
             const combinedNet = aNetTotal + gNetTotal;
             const pctNetAri = combinedNet > 0 ? Math.round((aNetTotal / combinedNet) * 100) : 0;
             const pctNetGi = combinedNet > 0 ? 100 - pctNetAri : 0;
-            document.getElementById('net-ari').textContent = `Gasto Neto Ari: $${aNetTotal} (${pctNetAri}%)`;
-            document.getElementById('net-gi').textContent = `Gasto Neto Gi: $${gNetTotal} (${pctNetGi}%)`;
-            document.getElementById('net-combined').textContent = `Total Gasto Real: $${combinedNet}`;
+            document.getElementById('net-ari').textContent = `Gasto Neto Ari: ${formatDisplayCurrency(aNetTotal)} (${pctNetAri}%)`;
+            document.getElementById('net-gi').textContent = `Gasto Neto Gi: ${formatDisplayCurrency(gNetTotal)} (${pctNetGi}%)`;
+            document.getElementById('net-combined').textContent = `Total Gasto Real: ${formatDisplayCurrency(combinedNet)}`;
             
             // Actualizar Balance Superior
-            const bal = aPaidUnliquidated - aShouldUnliquidated;
             const display = document.getElementById('balance-display');
             
-            if (bal > 0) { 
-                display.textContent = `Gi debe a Ari: $${bal}`; 
+            if (bal > 0.01) { 
+                display.textContent = `Gi debe a Ari: ${formatDisplayCurrency(bal)}`; 
                 display.style.color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)'; 
-            } else if (bal < 0) { 
-                display.textContent = `Ari debe a Gi: $${Math.abs(bal)}`; 
+            } else if (bal < -0.01) { 
+                display.textContent = `Ari debe a Gi: ${formatDisplayCurrency(Math.abs(bal))}`; 
                 display.style.color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)'; 
             } else { 
-                display.textContent = `Saldados $0`; 
+                display.textContent = `Saldados $ 0,00`; 
                 display.style.color = 'var(--text-main)'; 
             }
 
@@ -931,17 +1043,18 @@
                 if (!ex.liquidado) {
                     const mTotal = Number(ex.monto);
                     if (ex.pagador === 'Ari') aGlobalPaidUnliq += mTotal;
-                    aGlobalShouldUnliq += Math.round(mTotal * (ex.ari_pct / 100));
+                    aGlobalShouldUnliq += (mTotal * (ex.ari_pct / 100));
                 }
             });
 
             const globalBal = aGlobalPaidUnliq - aGlobalShouldUnliq;
             const warningDiv = document.getElementById('global-debt-warning');
             
-            if (globalBal !== 0 && globalBal !== bal) {
+            // Usamos un pequeño margen para los decimales flotantes
+            if (Math.abs(globalBal) > 0.01 && Math.abs(globalBal - bal) > 0.01) {
                 let txt = '';
-                if (globalBal > 0) txt = `⚠️ Atención: Contando meses anteriores, Gi debe a Ari en total $${globalBal}`;
-                else txt = `⚠️ Atención: Contando meses anteriores, Ari debe a Gi en total $${Math.abs(globalBal)}`;
+                if (globalBal > 0) txt = `⚠️ Atención: Contando meses anteriores, Gi debe a Ari en total ${formatDisplayCurrency(globalBal)}`;
+                else txt = `⚠️ Atención: Contando meses anteriores, Ari debe a Gi en total ${formatDisplayCurrency(Math.abs(globalBal))}`;
                 warningDiv.textContent = txt;
                 warningDiv.style.display = 'block';
             } else {
@@ -964,13 +1077,23 @@
             getFilteredExpenses().forEach(ex => {
                 const montoTotal = Number(ex.monto);
                 
-                // Flujo
-                if (ex.pagador === 'Ari') ariCash += montoTotal; else giCash += montoTotal;
+                // Flujo como transferencia
+                if (ex.categoria.includes('Liquidación')) {
+                    if (ex.pagador === 'Ari') {
+                        ariCash += montoTotal;
+                        giCash -= montoTotal;
+                    } else {
+                        giCash += montoTotal;
+                        ariCash -= montoTotal;
+                    }
+                } else {
+                    if (ex.pagador === 'Ari') ariCash += montoTotal; else giCash += montoTotal;
+                }
                 
                 // Neto
                 if (!ex.categoria.includes('Liquidación')) {
-                    ariNet += Math.round(montoTotal * (ex.ari_pct / 100));
-                    giNet += montoTotal - Math.round(montoTotal * (ex.ari_pct / 100));
+                    ariNet += (montoTotal * (ex.ari_pct / 100));
+                    giNet += montoTotal - (montoTotal * (ex.ari_pct / 100));
                 }
             });
 
@@ -983,7 +1106,7 @@
                 type: 'doughnut',
                 data: {
                     labels: [`Ari (${pAriCash}%)`, `Gi (${pGiCash}%)`],
-                    datasets: [{ data: [ariCash, giCash], backgroundColor: ['#4f46e5', '#ec4899'] }]
+                    datasets: [{ data: [Math.max(0, ariCash), Math.max(0, giCash)], backgroundColor: ['#4f46e5', '#ec4899'] }]
                 },
                 options: { 
                     responsive: true, 
@@ -1026,7 +1149,7 @@
         };
 
         const renderStatsChart = () => {
-            const ctx = document.getElementById('statsBarChart').getContext('2d');
+            const ctxBar = document.getElementById('statsBarChart').getContext('2d');
             if (statsBarChartInstance) statsBarChartInstance.destroy();
 
             const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -1037,7 +1160,7 @@
                 if (!ex.categoria.includes('Liquidación')) {
                     const m = new Date(ex.created_at).getMonth();
                     const montoTotal = Number(ex.monto);
-                    const ariNet = Math.round(montoTotal * (ex.ari_pct / 100));
+                    const ariNet = montoTotal * (ex.ari_pct / 100);
                     const giNet = montoTotal - ariNet;
                     
                     ariData[m] += ariNet;
@@ -1045,7 +1168,7 @@
                 }
             });
 
-            statsBarChartInstance = new Chart(ctx, {
+            statsBarChartInstance = new Chart(ctxBar, {
                 type: 'bar',
                 data: {
                     labels: months,
@@ -1058,6 +1181,44 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            const ctxCat = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            const categoryTotals = {};
+            getFilteredExpenses().forEach(ex => {
+                if (!ex.categoria.includes('Liquidación')) {
+                    const cats = ex.categoria.split(', ');
+                    const montoTotal = Number(ex.monto);
+                    const montoSplit = montoTotal / cats.length; 
+                    
+                    cats.forEach(cat => {
+                        if (!categoryTotals[cat]) categoryTotals[cat] = 0;
+                        categoryTotals[cat] += montoSplit;
+                    });
+                }
+            });
+
+            const catLabels = Object.keys(categoryTotals);
+            const catData = Object.values(categoryTotals);
+            
+            const catColors = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#84cc16', '#64748b', '#06b6d4'];
+
+            categoryChartInstance = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{ 
+                        data: catData, 
+                        backgroundColor: catColors.slice(0, catLabels.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
                 }
             });
         };
