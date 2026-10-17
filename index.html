@@ -27,8 +27,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // El parámetro ?v=2.4 fuerza al navegador a actualizar el Service Worker
-          navigator.serviceWorker.register('sw.js?v=2.4')
+          navigator.serviceWorker.register('sw.js?v=2.6')
           .then(function(registration) {
             console.log('SW registrado exitosamente.');
           })
@@ -113,6 +112,8 @@
         .action-btn { width: auto; padding: 6px 10px; font-size: 1.1em; border-radius: 6px; background-color: transparent;}
         .delete { color: var(--danger); }
         .delete:hover { background-color: #fee2e2; }
+        .edit-icon { color: var(--primary); }
+        .edit-icon:hover { background-color: #e0e7ff; }
         
         .balance { font-size: 2em; font-weight: 800; text-align: center; margin: 15px 0; }
         .totals { display: flex; justify-content: space-around; background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 10px; }
@@ -145,6 +146,15 @@
         .accordion-icon.open { transform: rotate(180deg); }
         .accordion-content { overflow: hidden; transition: max-height 0.3s ease-out; max-height: 1000px; }
 
+        /* ESTILOS LISTA DE COMPRAS */
+        .shopping-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s; }
+        .shopping-item:hover { background-color: #f9fafb; }
+        .shopping-item-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .shopping-checkbox { width: 22px; height: 22px; margin: 0; cursor: pointer; accent-color: var(--success); flex-shrink: 0; }
+        .shopping-text { font-size: 1.05em; font-weight: 500; cursor: pointer; word-break: break-word; }
+        .shopping-text.completed { text-decoration: line-through; color: var(--text-muted); }
+        .shopping-actions { display: flex; gap: 4px; }
+
         @media (max-width: 768px) {
             #main-content { padding: 15px; }
             .card { padding: 15px; }
@@ -174,7 +184,7 @@
 <body>
 
     <!-- INDICADOR DE VERSIÓN -->
-    <div class="version-badge">v2.4</div>
+    <div class="version-badge">v2.6</div>
 
     <div id="toast"></div>
 
@@ -204,6 +214,7 @@
             </div>
             <ul class="sidebar-menu">
                 <li id="nav-gastos" class="active" onclick="switchView('gastos')">🏠 Control de Gastos</li>
+                <li id="nav-lista" onclick="switchView('lista')">🛒 Lista de Compras</li>
                 <li id="nav-estadisticas" onclick="switchView('estadisticas')">📈 Estadísticas</li>
             </ul>
         </nav>
@@ -212,7 +223,7 @@
             <div class="header">
                 <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
                 
-                <div class="filter-group" style="margin-right: auto; margin-left: 10px;">
+                <div class="filter-group" id="month-filter-container" style="margin-right: auto; margin-left: 10px;">
                     <span style="font-size: 0.85em; font-weight: 600;">Mes:</span>
                     <select id="filter-month" onchange="applyFilters()">
                         <option value="todos">Todos</option>
@@ -230,6 +241,7 @@
                 <button class="logout" onclick="logout()">Salir</button>
             </div>
 
+            <!-- VISTA: CONTROL DE GASTOS -->
             <div id="view-gastos" class="view-section active">
                 
                 <div class="layout-container">
@@ -318,7 +330,22 @@
 
             </div>
 
-            <!-- ESTADÍSTICAS -->
+            <!-- VISTA: LISTA DE COMPRAS -->
+            <div id="view-lista" class="view-section">
+                <div class="card" style="max-width: 600px; margin: 0 auto;">
+                    <h2 style="margin-top: 0;">🛒 Lista de Compras</h2>
+                    <form id="shopping-form" style="display: flex; gap: 8px; margin-bottom: 20px;">
+                        <input type="text" id="shopping-input" placeholder="¿Qué hay que comprar?" required style="margin-bottom: 0;">
+                        <button type="submit" id="shopping-submit-btn" style="width: auto; flex-shrink: 0;">Agregar</button>
+                    </form>
+
+                    <div id="shopping-list-container">
+                        <!-- Items dinámicos -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA: ESTADÍSTICAS -->
             <div id="view-estadisticas" class="view-section">
                 <div class="card">
                     <h2>Histórico de Gastos (Real)</h2>
@@ -328,7 +355,6 @@
                     </div>
                 </div>
 
-                <!-- GASTOS POR CATEGORÍA -->
                 <div class="card">
                     <h2>Gastos por Categoría</h2>
                     <p style="color:var(--text-muted); margin-bottom: 20px;">Distribución del total gastado en el mes seleccionado (excluye liquidaciones).</p>
@@ -383,6 +409,20 @@
         </div>
     </div>
 
+    <!-- MODAL EDITAR ITEM DE LISTA DE COMPRAS -->
+    <div id="edit-shopping-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Editar Ítem</h3>
+            <form id="edit-shopping-form">
+                <input type="hidden" id="edit-shopping-id">
+                <label>Producto / Ítem</label>
+                <input type="text" id="edit-shopping-name" required>
+                <button type="submit" id="edit-shopping-submit-btn">Guardar Cambios</button>
+                <button type="button" style="background:transparent; color:var(--text-muted); margin-top:8px;" onclick="closeEditShoppingModal()">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
     <div id="settings-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Ajustes Generales</h3>
@@ -409,6 +449,7 @@
 
         let defaultAriPct = 50; 
         let expenses = [];
+        let shoppingList = [];
         let currentUserAlias = 'Ari';
         
         let availableCategories = ["Supermercado", "Servicios", "Salidas", "Auto/Transporte", "Hogar", "Varios", "Liquidación"];
@@ -422,28 +463,23 @@
 
         // --- FUNCIONES DE FORMATEO DE MONEDA ---
         function formatCurrency(input) {
-            // Elimina todo lo que no sea dígito o coma
             let value = input.value.replace(/[^0-9,]/g, '');
             if (!value) {
                 input.value = '';
                 return;
             }
             
-            // Permitir solo una coma dividiendo en partes
             const parts = value.split(',');
             let intPart = parts[0];
             
-            // Eliminar ceros a la izquierda, a menos que sea un solo '0'
             if (intPart.length > 1) {
                 intPart = intPart.replace(/^0+/, '');
                 if(intPart === '') intPart = '0';
             }
             
-            // Agregar puntos de miles
             intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             
             let result = '$ ' + intPart;
-            // Si hay decimales (se tipeó una coma), permitir hasta 2 dígitos
             if (parts.length > 1) {
                 result += ',' + parts[1].substring(0, 2);
             }
@@ -453,7 +489,6 @@
 
         function parseCurrency(str) {
             if (!str) return 0;
-            // Eliminar signos, espacios y puntos, cambiar coma por punto
             let clean = str.replace(/[^0-9,]/g, '').replace(',', '.');
             return parseFloat(clean) || 0;
         }
@@ -461,7 +496,6 @@
         function formatDisplayCurrency(num) {
             return '$ ' + Number(num).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
         }
-        // ---------------------------------------
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -490,6 +524,15 @@
             document.getElementById(`view-${view}`).classList.add('active');
             document.getElementById(`nav-${view}`).classList.add('active');
             
+            // Ocultar filtro de mes si estamos en la lista de compras
+            const monthFilter = document.getElementById('month-filter-container');
+            if (view === 'lista') {
+                monthFilter.style.visibility = 'hidden';
+                fetchShoppingList();
+            } else {
+                monthFilter.style.visibility = 'visible';
+            }
+
             if (window.innerWidth <= 768) toggleSidebar(); 
             if (view === 'estadisticas') renderStatsChart();
         }
@@ -547,8 +590,114 @@
             const dd = String(now.getDate()).padStart(2, '0');
             document.getElementById('date').value = `${yyyy}-${mm}-${dd}`;
             
-            await Promise.all([loadConfig(), fetchExpenses()]);
+            await Promise.all([loadConfig(), fetchExpenses(), fetchShoppingList()]);
         }
+
+        // --- LÓGICA LISTA DE COMPRAS ---
+        async function fetchShoppingList() {
+            const { data, error } = await supabaseClient
+                .from('lista_compras')
+                .select('*')
+                .order('comprado', { ascending: true })
+                .order('created_at', { ascending: false });
+            
+            if (!error) {
+                shoppingList = data || [];
+                renderShoppingList();
+            }
+        }
+
+        function renderShoppingList() {
+            const container = document.getElementById('shopping-list-container');
+            container.innerHTML = '';
+
+            if (shoppingList.length === 0) {
+                container.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 20px 0;">No hay productos en la lista.</p>`;
+                return;
+            }
+
+            shoppingList.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'shopping-item';
+                div.innerHTML = `
+                    <div class="shopping-item-left">
+                        <input type="checkbox" class="shopping-checkbox" ${item.comprado ? 'checked' : ''} onchange="toggleShoppingItem('${item.id}', this.checked)">
+                        <span class="shopping-text ${item.comprado ? 'completed' : ''}" onclick="openEditShoppingModal('${item.id}')">${item.nombre}</span>
+                    </div>
+                    <div class="shopping-actions">
+                        <button type="button" class="action-btn edit-icon" onclick="openEditShoppingModal('${item.id}')" title="Editar">✏️</button>
+                        <button type="button" class="action-btn delete" onclick="deleteShoppingItem('${item.id}')" title="Borrar">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        document.getElementById('shopping-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('shopping-input');
+            const nombre = input.value.trim();
+            if (!nombre) return;
+
+            const btn = document.getElementById('shopping-submit-btn');
+            btn.disabled = true;
+
+            const { error } = await supabaseClient.from('lista_compras').insert([{ nombre, comprado: false }]);
+            if (!error) {
+                input.value = '';
+                showToast("Ítem agregado");
+                await fetchShoppingList();
+            } else {
+                showToast("Error al agregar ítem", 'var(--danger)');
+            }
+            btn.disabled = false;
+        };
+
+        async function toggleShoppingItem(id, comprado) {
+            await supabaseClient.from('lista_compras').update({ comprado }).eq('id', id);
+            fetchShoppingList();
+        }
+
+        function openEditShoppingModal(id) {
+            const item = shoppingList.find(x => x.id === id);
+            if (!item) return;
+            document.getElementById('edit-shopping-id').value = item.id;
+            document.getElementById('edit-shopping-name').value = item.nombre;
+            document.getElementById('edit-shopping-modal').style.display = 'block';
+        }
+
+        function closeEditShoppingModal() {
+            document.getElementById('edit-shopping-modal').style.display = 'none';
+        }
+
+        document.getElementById('edit-shopping-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-shopping-id').value;
+            const nombre = document.getElementById('edit-shopping-name').value.trim();
+            if (!nombre) return;
+
+            const btn = document.getElementById('edit-shopping-submit-btn');
+            btn.disabled = true;
+
+            const { error } = await supabaseClient.from('lista_compras').update({ nombre }).eq('id', id);
+            if (!error) {
+                showToast("Ítem actualizado");
+                closeEditShoppingModal();
+                await fetchShoppingList();
+            } else {
+                showToast("Error al actualizar", 'var(--danger)');
+            }
+            btn.disabled = false;
+        };
+
+        async function deleteShoppingItem(id) {
+            if (confirm("¿Eliminar este ítem de la lista?")) {
+                await supabaseClient.from('lista_compras').delete().eq('id', id);
+                showToast("Ítem eliminado", 'var(--danger)');
+                fetchShoppingList();
+            }
+        }
+        // -------------------------------
 
         function applyFilters() {
             renderList();
@@ -682,7 +831,6 @@
             const dateInput = document.getElementById('date').value;
             const dateObj = new Date(`${dateInput}T12:00:00-03:00`);
 
-            // Parsear el string del formato nuevo
             const finalAmount = parseCurrency(document.getElementById('amount').value);
 
             const data = {
@@ -751,7 +899,6 @@
             document.getElementById('edit-id').value = ex.id;
             document.getElementById('edit-desc').value = ex.descripcion;
             
-            // Cargar monto formateado para edición
             document.getElementById('edit-amount').value = formatDisplayCurrency(ex.monto);
             
             document.getElementById('edit-payer').value = ex.pagador;
@@ -781,7 +928,7 @@
         };
 
         const settleUp = async () => {
-            const bal = calculateBalance(true); // Pasar true para obtener solo el valor de deuda
+            const bal = calculateBalance(true); 
             
             if (bal === 0) {
                 showToast("No hay deudas para liquidar en este mes", 'var(--text-muted)');
@@ -976,30 +1123,28 @@
             let aNetTotal = 0, gNetTotal = 0;
 
             const filtered = getFilteredExpenses();
+            const selectedMonthValue = document.getElementById('filter-month').value;
 
             filtered.forEach(ex => {
                 const montoTotal = Number(ex.monto);
                 
-                // Flujo de Caja (Liquidación funciona como transferencia)
                 if (ex.categoria.includes('Liquidación')) {
                     if (ex.pagador === 'Ari') {
-                        aPaidTotal += montoTotal; // Ari pagó
-                        gPaidTotal -= montoTotal; // Gi recibió (baja su flujo adelantado)
+                        aPaidTotal += montoTotal; 
+                        gPaidTotal -= montoTotal; 
                     } else {
-                        gPaidTotal += montoTotal; // Gi pagó
-                        aPaidTotal -= montoTotal; // Ari recibió (baja su flujo adelantado)
+                        gPaidTotal += montoTotal; 
+                        aPaidTotal -= montoTotal; 
                     }
                 } else {
                     if (ex.pagador === 'Ari') aPaidTotal += montoTotal; else gPaidTotal += montoTotal;
                 }
 
-                // Deudas no liquidadas
                 if (!ex.liquidado) {
                     if (ex.pagador === 'Ari') aPaidUnliquidated += montoTotal;
                     aShouldUnliquidated += (montoTotal * (ex.ari_pct / 100));
                 }
 
-                // Gasto Real (Neto) excluyendo liquidaciones
                 if (!ex.categoria.includes('Liquidación')) {
                     aNetTotal += (montoTotal * (ex.ari_pct / 100));
                     gNetTotal += montoTotal - (montoTotal * (ex.ari_pct / 100));
@@ -1009,14 +1154,12 @@
             const bal = aPaidUnliquidated - aShouldUnliquidated;
             if (returnValueOnly) return bal;
 
-            // Actualizar Textos Flujo de Caja
             const combinedCash = aPaidTotal + gPaidTotal;
             const pctCashAri = combinedCash > 0 ? Math.round((aPaidTotal / combinedCash) * 100) : 0;
             const pctCashGi = combinedCash > 0 ? 100 - pctCashAri : 0;
             document.getElementById('cash-ari').textContent = `Adelantó Ari: ${formatDisplayCurrency(aPaidTotal)} (${pctCashAri}%)`;
             document.getElementById('cash-gi').textContent = `Adelantó Gi: ${formatDisplayCurrency(gPaidTotal)} (${pctCashGi}%)`;
 
-            // Actualizar Textos Gasto Neto
             const combinedNet = aNetTotal + gNetTotal;
             const pctNetAri = combinedNet > 0 ? Math.round((aNetTotal / combinedNet) * 100) : 0;
             const pctNetGi = combinedNet > 0 ? 100 - pctNetAri : 0;
@@ -1024,7 +1167,6 @@
             document.getElementById('net-gi').textContent = `Gasto Neto Gi: ${formatDisplayCurrency(gNetTotal)} (${pctNetGi}%)`;
             document.getElementById('net-combined').textContent = `Total Gasto Real: ${formatDisplayCurrency(combinedNet)}`;
             
-            // Actualizar Balance Superior
             const display = document.getElementById('balance-display');
             
             if (bal > 0.01) { 
@@ -1041,6 +1183,17 @@
             let aGlobalPaidUnliq = 0, aGlobalShouldUnliq = 0;
             expenses.forEach(ex => {
                 if (!ex.liquidado) {
+                    if (selectedMonthValue !== 'todos') {
+                        const exDate = new Date(ex.created_at);
+                        const currentYear = new Date().getFullYear();
+                        if (exDate.getFullYear() === currentYear && exDate.getMonth() > Number(selectedMonthValue)) {
+                            return; 
+                        }
+                        if (exDate.getFullYear() > currentYear) {
+                            return; 
+                        }
+                    }
+
                     const mTotal = Number(ex.monto);
                     if (ex.pagador === 'Ari') aGlobalPaidUnliq += mTotal;
                     aGlobalShouldUnliq += (mTotal * (ex.ari_pct / 100));
@@ -1050,7 +1203,6 @@
             const globalBal = aGlobalPaidUnliq - aGlobalShouldUnliq;
             const warningDiv = document.getElementById('global-debt-warning');
             
-            // Usamos un pequeño margen para los decimales flotantes
             if (Math.abs(globalBal) > 0.01 && Math.abs(globalBal - bal) > 0.01) {
                 let txt = '';
                 if (globalBal > 0) txt = `⚠️ Atención: Contando meses anteriores, Gi debe a Ari en total ${formatDisplayCurrency(globalBal)}`;
@@ -1077,7 +1229,6 @@
             getFilteredExpenses().forEach(ex => {
                 const montoTotal = Number(ex.monto);
                 
-                // Flujo como transferencia
                 if (ex.categoria.includes('Liquidación')) {
                     if (ex.pagador === 'Ari') {
                         ariCash += montoTotal;
@@ -1090,14 +1241,12 @@
                     if (ex.pagador === 'Ari') ariCash += montoTotal; else giCash += montoTotal;
                 }
                 
-                // Neto
                 if (!ex.categoria.includes('Liquidación')) {
                     ariNet += (montoTotal * (ex.ari_pct / 100));
                     giNet += montoTotal - (montoTotal * (ex.ari_pct / 100));
                 }
             });
 
-            // CHART FLUJO DE CAJA
             const combinedCash = ariCash + giCash;
             const pAriCash = combinedCash > 0 ? Math.round((ariCash / combinedCash) * 100) : 0;
             const pGiCash = combinedCash > 0 ? 100 - pAriCash : 0;
@@ -1122,7 +1271,6 @@
                 }
             });
 
-            // CHART GASTO NETO
             const combinedNet = ariNet + giNet;
             const pAriNet = combinedNet > 0 ? Math.round((ariNet / combinedNet) * 100) : 0;
             const pGiNet = combinedNet > 0 ? 100 - pAriNet : 0;
