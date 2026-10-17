@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-priel-v2.8';
+const CACHE_NAME = 'gastos-priel-v2.9';
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -19,12 +19,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', function(event) {
-    // No interceptar llamadas a Supabase ni scripts externos
     if (!event.request.url.startsWith(self.location.origin)) {
         return;
     }
 
-    // Para navegación o el HTML principal, ir SIEMPRE a la red sin usar caché
     if (event.request.mode === 'navigate' || event.request.url.endsWith('/') || event.request.url.includes('index.html')) {
         event.respondWith(
             fetch(event.request, { cache: 'no-store' }).catch(() => caches.match(event.request))
