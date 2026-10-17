@@ -17,10 +17,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-      const APP_VERSION = '2.8';
+      const APP_VERSION = '2.9';
       let swRegistration = null;
 
-      // Limpieza activa de cachés viejas desde el cliente
       if ('caches' in window) {
         caches.keys().then(names => {
           names.forEach(name => {
@@ -52,7 +51,7 @@
       }
 
       async function checkManualUpdate() {
-        showToast("Limpiando caché y actualizando...", "var(--primary)");
+        showToast("Limpiando cache y actualizando...", "var(--primary)");
         if ('caches' in window) {
           const keys = await caches.keys();
           await Promise.all(keys.map(k => caches.delete(k)));
@@ -73,19 +72,32 @@
         .spinner { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; animation: pulse 1.5s infinite ease-in-out; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
         #update-banner { display: none; position: fixed; top: 0; left: 0; width: 100%; background: var(--primary); color: white; padding: 14px 20px; z-index: 9999; align-items: center; justify-content: center; gap: 12px; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-        #login-container { max-width: 380px; margin: 100px auto; text-align: center; padding: 20px;}
+        #login-container { max-width: 380px; margin: 100px auto; text-align: center; padding: 20px; }
         .error-msg { color: var(--danger); font-size: 0.9em; margin-top: 10px; display: none; }
-        #app-wrapper { display: none; min-height: 100vh; flex-direction: row; }
-        #sidebar { width: 250px; background: white; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; transition: transform 0.3s ease; }
-        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;}
+        #app-wrapper { display: none; min-height: 100vh; flex-direction: row; position: relative; }
+        
+        /* MENU HAMBURGUESA Y SIDEBAR EN PC */
+        #sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 4000; transform: translateX(-100%); transition: transform 0.3s ease; }
+        #sidebar.open { transform: translateX(0); box-shadow: 4px 0 16px rgba(0,0,0,0.15); }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
         .sidebar-menu { list-style: none; padding: 0; margin: 0; }
         .sidebar-menu li { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #f9fafb; font-weight: 500; color: var(--text-muted); }
         .sidebar-menu li:hover { background: #f3f4f6; color: var(--primary); }
         .sidebar-menu li.active { background: #e0e7ff; color: var(--primary); border-right: 4px solid var(--primary); }
-        .close-sidebar-btn { display: none; background: none; border: none; font-size: 1.2em; cursor: pointer; color: var(--text-muted); width: auto; padding: 0;}
-        #main-content { flex: 1; padding: 20px; max-width: 1200px; margin: auto; overflow-x: hidden; width: 100%; }
+        .close-sidebar-btn { display: block; background: none; border: none; font-size: 1.2em; cursor: pointer; color: var(--text-muted); width: auto; padding: 4px 8px; }
+        
+        #main-content { flex: 1; padding: 20px; max-width: 1200px; margin: 0 auto; overflow-x: hidden; width: 100%; }
         .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 24px; gap: 12px; }
-        .hamburger-btn { display: none; background: none; border: none; font-size: 1.8em; cursor: pointer; color: var(--text-main); width: auto; padding: 0; margin-right: auto; }
+        .hamburger-btn { display: flex; align-items: center; justify-content: center; background: white; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1.5em; cursor: pointer; color: var(--text-main); width: 44px; height: 44px; padding: 0; flex-shrink: 0; }
+        .hamburger-btn:hover { background: #f9fafb; }
+
+        /* BOTTOM NAV (BELOW MENU PARA CELULAR) */
+        #bottom-nav { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 64px; background: white; border-top: 1px solid var(--border-color); z-index: 3500; justify-content: space-around; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
+        .bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 0.75em; font-weight: 600; cursor: pointer; background: none; border: none; padding: 4px 0; border-radius: 0; }
+        .bottom-nav-item:hover { background: #f9fafb; }
+        .bottom-nav-item .nav-icon { font-size: 1.5em; margin-bottom: 2px; line-height: 1; }
+        .bottom-nav-item.active { color: var(--primary); border-top: 3px solid var(--primary); background: #f5f7ff; }
+
         .user-badge { background: #e0e7ff; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85em; }
         .app-logo { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 16px auto; border: 3px solid var(--border-color); }
         input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1em; background-color: #f9fafb; }
@@ -95,12 +107,12 @@
         .quick-amounts button:hover { background: #d1d5db; }
         button { background-color: var(--primary); color: white; border: none; padding: 12px 20px; cursor: pointer; font-weight: 600; border-radius: 8px; width: 100%; }
         button:hover { background-color: var(--primary-hover); }
-        .icon-btn { width: 44px; height: 44px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; cursor: pointer; padding: 0; flex-shrink: 0;}
-        .logout { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); width: auto; padding: 8px 12px; font-size: 0.8em; flex-shrink: 0;}
+        .icon-btn { width: 44px; height: 44px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; cursor: pointer; padding: 0; flex-shrink: 0; }
+        .logout { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); width: auto; padding: 8px 12px; font-size: 0.8em; flex-shrink: 0; }
         .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-        .tag-pill { padding: 8px 12px; background: #f3f4f6; border-radius: 20px; font-size: 0.85em; cursor: pointer; border: 1px solid transparent; user-select: none;}
+        .tag-pill { padding: 8px 12px; background: #f3f4f6; border-radius: 20px; font-size: 0.85em; cursor: pointer; border: 1px solid transparent; user-select: none; }
         .tag-pill.selected { background: #e0e7ff; color: var(--primary); border-color: var(--primary); font-weight: bold; }
-        .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; margin-right: 4px;}
+        .badge-cat { padding: 4px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; background: #f3f4f6; color: #374151; display: inline-block; margin-top: 4px; margin-right: 4px; }
         .layout-container { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; width: 100%; }
         .left-panel { flex: 1; min-width: 320px; }
         .right-panel { flex: 2; min-width: 450px; }
@@ -109,7 +121,7 @@
         td { padding: 14px 12px; border-bottom: 1px solid var(--border-color); }
         tbody tr { cursor: pointer; transition: background-color 0.2s; }
         tbody tr:hover { background-color: #f0fdf4; }
-        .action-btn { width: auto; padding: 6px 10px; font-size: 1.1em; border-radius: 6px; background-color: transparent;}
+        .action-btn { width: auto; padding: 6px 10px; font-size: 1.1em; border-radius: 6px; background-color: transparent; }
         .delete { color: var(--danger); }
         .delete:hover { background-color: #fee2e2; }
         .edit-icon { color: var(--primary); }
@@ -119,18 +131,18 @@
         .debt-text { font-weight: 600; display: inline-block; margin-top: 4px; }
         .total-combined { font-size: 1.2em; font-weight: 700; color: var(--text-main); margin-top: 15px; margin-bottom: 20px; padding: 10px; background: #e0e7ff; border-radius: 8px; }
         .global-warning { display: none; background: #fee2e2; color: var(--danger); padding: 12px; border-radius: 8px; font-size: 0.9em; font-weight: 600; margin-bottom: 15px; border: 1px solid #f87171; }
-        #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(100px); transition: transform 0.3s; z-index: 5000; }
+        #toast { position: fixed; bottom: 80px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; transform: translateY(150px); transition: transform 0.3s; z-index: 5000; }
         #toast.show { transform: translateY(0); }
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; backdrop-filter: blur(2px); }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 4500; backdrop-filter: blur(2px); }
         .modal-content { background: white; max-width: 400px; margin: 5vh auto; padding: 24px; border-radius: 16px; max-height: 90vh; overflow-y: auto; width: 90%; }
-        .filter-group { display: flex; gap: 8px; align-items: center; background: white; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .filter-group { display: flex; gap: 8px; align-items: center; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); }
         .filter-group select { margin: 0; padding: 5px; font-size: 0.85em; width: auto; border: none; background: transparent; cursor: pointer; }
         .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f9fafb; margin-bottom: 4px; border-radius: 6px; }
         .view-section { display: none; width: 100%; }
         .view-section.active { display: block; }
         .chart-container { height: 200px; display: flex; justify-content: center; margin-bottom: 15px; cursor: pointer; }
         .clickable-total { cursor: pointer; text-decoration: underline; color: var(--primary); }
-        .version-badge { position: fixed; bottom: 10px; left: 10px; font-size: 0.75em; color: var(--text-muted); z-index: 1000; font-weight: bold; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .version-badge { position: fixed; bottom: 10px; left: 10px; font-size: 0.75em; color: var(--text-muted); z-index: 3600; font-weight: bold; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-top: 0; margin-bottom: 0; }
         .accordion-icon { font-size: 1.2em; transition: transform 0.3s; }
         .accordion-icon.open { transform: rotate(180deg); }
@@ -142,14 +154,19 @@
         .shopping-text { font-size: 1.05em; font-weight: 500; cursor: pointer; word-break: break-word; }
         .shopping-text.completed { text-decoration: line-through; color: var(--text-muted); }
         .shopping-actions { display: flex; gap: 4px; }
+
         @media (max-width: 768px) {
-            #main-content { padding: 15px; } .card { padding: 15px; } .layout-container { gap: 15px; flex-direction: column; }
-            #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 4000; transform: translateX(-100%); width: 260px; box-shadow: none; transition: transform 0.3s ease; }
-            #sidebar.open { transform: translateX(0); box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
-            .hamburger-btn, .close-sidebar-btn { display: block !important; padding: 5px 10px; }
-            .header { flex-wrap: wrap; justify-content: flex-end; margin-bottom: 15px; }
-            .filter-group { order: 5; width: 100%; margin-top: 15px; margin-left: 0 !important; justify-content: center; background: #e5e7eb; }
-            #logged-user-display { display: none; }
+            #main-content { padding: 15px; padding-bottom: 90px; }
+            .card { padding: 15px; }
+            .layout-container { gap: 15px; flex-direction: column; }
+            /* En celular usamos el Bottom Menu inferior y ocultamos el boton hamburguesa */
+            .hamburger-btn { display: none !important; }
+            #sidebar { display: none !important; }
+            #bottom-nav { display: flex !important; }
+            .version-badge { bottom: 72px; left: 10px; }
+            .header { flex-wrap: wrap; justify-content: space-between; margin-bottom: 15px; }
+            .filter-group { order: 5; width: 100%; margin-top: 10px; margin-left: 0 !important; justify-content: center; background: #e5e7eb; }
+            #logged-user-display { font-size: 0.75em; padding: 6px 10px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .right-panel, .left-panel { min-width: 100%; }
             .accordion-content { max-height: 0; padding-top: 0; }
             .accordion-content.open { max-height: 1000px; padding-top: 15px; }
@@ -164,7 +181,7 @@
         <span>🔄 Nueva versión detectada. Actualizando aplicación...</span>
     </div>
 
-    <div class="version-badge" onclick="checkManualUpdate()" title="Tocar para forzar actualización">v2.8 🔄</div>
+    <div class="version-badge" onclick="checkManualUpdate()" title="Tocar para forzar actualización">v2.9 🔄</div>
 
     <div id="toast"></div>
 
@@ -173,7 +190,7 @@
         <h3 style="color: var(--text-muted);">Ingresando a Control de Gastos Priel</h3>
     </div>
 
-    <div id="mobile-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3999;" onclick="toggleSidebar()"></div>
+    <div id="mobile-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:3999;" onclick="toggleSidebar()"></div>
 
     <div id="login-container" class="card">
         <h2 style="margin-bottom: 15px;">Control de Gastos Priel</h2>
@@ -187,10 +204,11 @@
     </div>
 
     <div id="app-wrapper">
+        <!-- SIDEBAR DESPLEGABLE (PC) -->
         <nav id="sidebar">
             <div class="sidebar-header">
-                <h3 style="margin:0;">Control de Gastos Priel</h3>
-                <button class="close-sidebar-btn" onclick="toggleSidebar()">✖</button>
+                <h3 style="margin:0;">Gastos Priel</h3>
+                <button type="button" class="close-sidebar-btn" onclick="toggleSidebar()">✖</button>
             </div>
             <ul class="sidebar-menu">
                 <li id="nav-gastos" class="active" onclick="switchView('gastos')">🏠 Control de Gastos</li>
@@ -201,7 +219,7 @@
 
         <div id="main-content">
             <div class="header">
-                <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+                <button type="button" class="hamburger-btn" onclick="toggleSidebar()" title="Menú">☰</button>
                 <div class="filter-group" id="month-filter-container" style="margin-right: auto; margin-left: 10px;">
                     <span style="font-size: 0.85em; font-weight: 600;">Mes:</span>
                     <select id="filter-month" onchange="applyFilters()">
@@ -215,8 +233,8 @@
                     </select>
                 </div>
                 <span class="user-badge" id="logged-user-display"></span>
-                <button class="icon-btn" onclick="openSettings()">⚙️</button>
-                <button class="logout" onclick="logout()">Salir</button>
+                <button type="button" class="icon-btn" onclick="openSettings()">⚙️</button>
+                <button type="button" class="logout" onclick="logout()">Salir</button>
             </div>
 
             <!-- VISTA: CONTROL DE GASTOS -->
@@ -254,7 +272,7 @@
                     <div class="card right-panel" style="text-align: center; margin-bottom: 0;">
                         <div id="global-debt-warning" class="global-warning"></div>
                         <h3 style="margin-top: 0; color: var(--text-muted); font-size: 1.1em; text-transform: uppercase;">Balance del Mes</h3>
-                        <div id="balance-display" class="balance">$0,00</div>
+                        <div id="balance-display" class="balance">$ 0,00</div>
                         
                         <h4 style="margin: 25px 0 5px 0; color: var(--text-muted);">Gasto Real Neto (Excluye Liquidaciones)</h4>
                         <div class="totals" style="background: #eef2ff;">
@@ -276,7 +294,7 @@
                             <canvas id="homePieChart"></canvas>
                         </div>
 
-                        <button class="settle" style="margin-top:20px;" onclick="settleUp()">Liquidar Cuentas del Mes</button>
+                        <button type="button" class="settle" style="margin-top:20px;" onclick="settleUp()">Liquidar Cuentas del Mes</button>
                     </div>
                 </div>
 
@@ -323,6 +341,22 @@
                 </div>
             </div>
         </div>
+
+        <!-- MENU INFERIOR (BELOW MENU PARA CELULAR) -->
+        <nav id="bottom-nav">
+            <button type="button" id="bnav-gastos" class="bottom-nav-item active" onclick="switchView('gastos')">
+                <span class="nav-icon">🏠</span>
+                <span>Gastos</span>
+            </button>
+            <button type="button" id="bnav-lista" class="bottom-nav-item" onclick="switchView('lista')">
+                <span class="nav-icon">🛒</span>
+                <span>Lista</span>
+            </button>
+            <button type="button" id="bnav-estadisticas" class="bottom-nav-item" onclick="switchView('estadisticas')">
+                <span class="nav-icon">📈</span>
+                <span>Estadísticas</span>
+            </button>
+        </nav>
     </div>
 
     <!-- MODALES -->
@@ -387,8 +421,8 @@
                 <input type="text" id="new-category" placeholder="Nueva categoría..." style="margin: 0;">
                 <button type="button" onclick="addCategory()" style="width: auto;">Agregar</button>
             </div>
-            <button id="btn-save-config" onclick="saveDefaultPct()">Guardar Todo</button>
-            <button onclick="closeSettings()" style="background:transparent; color:var(--text-muted); margin-top:10px;">Cerrar</button>
+            <button type="button" id="btn-save-config" onclick="saveDefaultPct()">Guardar Todo</button>
+            <button type="button" onclick="closeSettings()" style="background:transparent; color:var(--text-muted); margin-top:10px;">Cerrar</button>
         </div>
     </div>
 
@@ -397,7 +431,7 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZuZ3NneHZiaHhrZ2lkZG5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzIxMzksImV4cCI6MjA5MjAwODEzOX0.BnhJNgpR83qcJSyveAZatI_WGhfJQjrlmr81ymf1SMc';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        let defaultAriPct = 50; 
+        let defaultAriPct = 60;
         let expenses = [];
         let shoppingList = [];
         let currentUserAlias = 'Ari';
@@ -418,7 +452,7 @@
             let intPart = parts[0];
             if (intPart.length > 1) {
                 intPart = intPart.replace(/^0+/, '');
-                if(intPart === '') intPart = '0';
+                if (intPart === '') intPart = '0';
             }
             intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             let result = '$ ' + intPart;
@@ -440,7 +474,7 @@
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobile-overlay');
             sidebar.classList.toggle('open');
-            overlay.style.display = (sidebar.classList.contains('open') && window.innerWidth <= 768) ? 'block' : 'none';
+            overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
         }
 
         function toggleAccordion(id) {
@@ -455,8 +489,13 @@
         function switchView(view) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.sidebar-menu li').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
+
             document.getElementById(`view-${view}`).classList.add('active');
-            document.getElementById(`nav-${view}`).classList.add('active');
+            const sideItem = document.getElementById(`nav-${view}`);
+            if (sideItem) sideItem.classList.add('active');
+            const botItem = document.getElementById(`bnav-${view}`);
+            if (botItem) botItem.classList.add('active');
             
             const monthFilter = document.getElementById('month-filter-container');
             if (view === 'lista') {
@@ -466,7 +505,8 @@
                 monthFilter.style.visibility = 'visible';
             }
 
-            if (window.innerWidth <= 768) toggleSidebar(); 
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) toggleSidebar();
             if (view === 'estadisticas') renderStatsChart();
         }
 
@@ -493,7 +533,7 @@
                     btn.textContent = 'Ingresar'; btn.disabled = false;
                 }
             } catch (e) {
-                document.getElementById('login-error').textContent = "Error de conexión con Supabase. Revisá si el proyecto está pausado.";
+                document.getElementById('login-error').textContent = "Error de conexión con Supabase.";
                 document.getElementById('login-error').style.display = 'block';
                 btn.textContent = 'Ingresar'; btn.disabled = false;
             }
@@ -644,7 +684,6 @@
                 }
             } catch (e) {
                 console.error("Error de red en configuracion:", e);
-                showToast("Sin conexión a Supabase (revisar servidor)", "var(--danger)");
             }
             if (!availableCategories.includes("Liquidación")) availableCategories.push("Liquidación");
             renderCategoryPills('new');
@@ -692,13 +731,13 @@
             if (context === 'new') selectedCategoriesNew = arr;
             else selectedCategoriesEdit = arr;
             renderCategoryPills(context);
-        };
+        }
 
         function renderSettingsCategories() {
             const container = document.getElementById('settings-cat-list');
             container.innerHTML = '';
             availableCategories.forEach(cat => {
-                if(cat === "Liquidación") return;
+                if (cat === "Liquidación") return;
                 const div = document.createElement('div');
                 div.className = 'setting-item';
                 div.innerHTML = `<span>${cat}</span><button type="button" onclick="removeCategory('${cat}')" style="width:auto; padding:4px 10px; background:var(--danger); font-size:0.8em;">Borrar</button>`;
@@ -747,12 +786,15 @@
             const btn = document.getElementById('submit-btn');
             const dateInput = document.getElementById('date').value;
             const dateObj = new Date(`${dateInput}T12:00:00-03:00`);
+            const isLiq = selectedCategoriesNew.includes('Liquidación');
+            const payerVal = document.getElementById('payer').value;
             const data = {
                 descripcion: document.getElementById('desc').value,
                 monto: parseCurrency(document.getElementById('amount').value),
-                pagador: document.getElementById('payer').value,
+                pagador: payerVal,
                 categoria: selectedCategoriesNew.join(', '),
-                ari_pct: defaultAriPct,
+                ari_pct: isLiq ? (payerVal === 'Gi' ? 0 : 100) : defaultAriPct,
+                liquidado: isLiq ? true : false,
                 created_at: dateObj.toISOString()
             };
             btn.disabled = true;
@@ -777,12 +819,15 @@
             const ex = expenses.find(x => x.id === id);
             const dateInput = document.getElementById('edit-date').value;
             const dateObj = new Date(`${dateInput}T12:00:00-03:00`);
+            const isLiq = selectedCategoriesEdit.includes('Liquidación');
+            const payerVal = document.getElementById('edit-payer').value;
             const data = {
                 descripcion: document.getElementById('edit-desc').value,
                 monto: parseCurrency(document.getElementById('edit-amount').value),
-                pagador: document.getElementById('edit-payer').value,
+                pagador: payerVal,
                 categoria: selectedCategoriesEdit.join(', '),
-                ari_pct: ex.ari_pct,
+                ari_pct: isLiq ? (payerVal === 'Gi' ? 0 : 100) : ex.ari_pct,
+                liquidado: isLiq ? true : ex.liquidado,
                 created_at: dateObj.toISOString()
             };
             btn.disabled = true;
@@ -818,8 +863,8 @@
 
         const settleUp = async () => {
             const bal = calculateBalance(true); 
-            if (bal === 0) { showToast("No hay deudas para liquidar en este mes", 'var(--text-muted)'); return; }
-            if (confirm("¿Liquidar las deudas de este período y registrar el pago como un nuevo gasto?")) {
+            if (Math.abs(bal) <= 1) { showToast("No hay deudas para liquidar en este mes", 'var(--text-muted)'); return; }
+            if (confirm("¿Liquidar las deudas de este período y registrar el pago al último día del mes?")) {
                 const filtered = getFilteredExpenses().filter(ex => !ex.liquidado);
                 const idsToUpdate = filtered.map(ex => ex.id);
                 if (idsToUpdate.length > 0) {
@@ -845,7 +890,7 @@
                     created_at: settleDate.toISOString()
                 };
                 await supabaseClient.from('gastos').insert([settlementData]);
-                showToast("Deudas liquidadas y pago registrado retroactivo");
+                showToast("Deudas liquidadas y pago registrado");
                 fetchExpenses();
             }
         };
@@ -915,7 +960,7 @@
                 const giS = Number(ex.monto) - ariS;
                 const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short', year:'numeric'});
                 let debtText = '';
-                if (ex.liquidado) {
+                if (ex.liquidado || ex.categoria.includes('Liquidación')) {
                     debtText = `<span class="debt-text" style="color: var(--text-muted); background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">Liquidado</span>`;
                 } else if ((ex.pagador === 'Ari' && ex.ari_pct === 100) || (ex.pagador === 'Gi' && ex.ari_pct === 0)) {
                     debtText = `<span class="debt-text" style="color: var(--text-muted);">Sin deuda generada</span>`;
@@ -959,8 +1004,41 @@
             });
         };
 
+        // Helper que calcula la deuda real matemática de un conjunto de gastos (Flujo de Caja vs Responsabilidad Neta)
+        function computeGroupBalance(list) {
+            let aCash = 0, aNet = 0;
+            let aUnliqPaid = 0, aUnliqShould = 0;
+            let hasSettlement = false;
+
+            list.forEach(ex => {
+                const m = Number(ex.monto);
+                if (ex.categoria.includes('Liquidación')) {
+                    hasSettlement = true;
+                    if (ex.pagador === 'Ari') aCash += m;
+                    else aCash -= m;
+                } else {
+                    if (ex.pagador === 'Ari') aCash += m;
+                    aNet += (m * (ex.ari_pct / 100));
+                    if (!ex.liquidado) {
+                        if (ex.pagador === 'Ari') aUnliqPaid += m;
+                        aUnliqShould += (m * (ex.ari_pct / 100));
+                    }
+                }
+            });
+
+            // Si hay liquidaciones cargadas en el mes, el saldo real es la diferencia entre lo adelantado (incluyendo transferencias) y el gasto real neto
+            const cashFlowDiff = aCash - aNet;
+            const unliquidatedDiff = aUnliqPaid - aUnliqShould;
+
+            // Si el flujo de caja ya está saldado (diferencia <= $1), el mes está en 0 aunque algún gasto viejo no tenga liquidado=true
+            if (hasSettlement && Math.abs(cashFlowDiff) <= 1) {
+                return 0;
+            }
+            return hasSettlement ? cashFlowDiff : unliquidatedDiff;
+        }
+
         const calculateBalance = (returnValueOnly = false) => {
-            let aPaidTotal = 0, gPaidTotal = 0, aPaidUnliquidated = 0, aShouldUnliquidated = 0, aNetTotal = 0, gNetTotal = 0;
+            let aPaidTotal = 0, gPaidTotal = 0, aNetTotal = 0, gNetTotal = 0;
             const filtered = getFilteredExpenses();
             const selectedMonthValue = document.getElementById('filter-month').value;
 
@@ -971,18 +1049,12 @@
                     else { gPaidTotal += montoTotal; aPaidTotal -= montoTotal; }
                 } else {
                     if (ex.pagador === 'Ari') aPaidTotal += montoTotal; else gPaidTotal += montoTotal;
-                }
-                if (!ex.liquidado) {
-                    if (ex.pagador === 'Ari') aPaidUnliquidated += montoTotal;
-                    aShouldUnliquidated += (montoTotal * (ex.ari_pct / 100));
-                }
-                if (!ex.categoria.includes('Liquidación')) {
                     aNetTotal += (montoTotal * (ex.ari_pct / 100));
                     gNetTotal += montoTotal - (montoTotal * (ex.ari_pct / 100));
                 }
             });
 
-            const bal = aPaidUnliquidated - aShouldUnliquidated;
+            const bal = computeGroupBalance(filtered);
             if (returnValueOnly) return bal;
 
             const combinedCash = aPaidTotal + gPaidTotal;
@@ -999,10 +1071,10 @@
             document.getElementById('net-combined').textContent = `Total Gasto Real: ${formatDisplayCurrency(combinedNet)}`;
             
             const display = document.getElementById('balance-display');
-            if (bal > 0.01) { 
+            if (bal > 1) { 
                 display.textContent = `Gi debe a Ari: ${formatDisplayCurrency(bal)}`; 
                 display.style.color = currentUserAlias === 'Ari' ? 'var(--success)' : 'var(--danger)'; 
-            } else if (bal < -0.01) { 
+            } else if (bal < -1) { 
                 display.textContent = `Ari debe a Gi: ${formatDisplayCurrency(Math.abs(bal))}`; 
                 display.style.color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)'; 
             } else { 
@@ -1010,27 +1082,31 @@
                 display.style.color = 'var(--text-main)'; 
             }
 
-            let aGlobalPaidUnliq = 0, aGlobalShouldUnliq = 0;
-            expenses.forEach(ex => {
-                if (!ex.liquidado) {
-                    if (selectedMonthValue !== 'todos') {
-                        const exDate = new Date(ex.created_at);
-                        const currentYear = new Date().getFullYear();
-                        if (exDate.getFullYear() === currentYear && exDate.getMonth() > Number(selectedMonthValue)) return; 
-                        if (exDate.getFullYear() > currentYear) return; 
+            // Deuda global histórica hasta el mes seleccionado (evaluada mes por mes)
+            const currentYear = new Date().getFullYear();
+            let globalBal = 0;
+            if (selectedMonthValue === 'todos') {
+                globalBal = bal;
+            } else {
+                const maxM = Number(selectedMonthValue);
+                for (let m = 0; m <= maxM; m++) {
+                    const monthEx = expenses.filter(ex => {
+                        const d = new Date(ex.created_at);
+                        return d.getFullYear() <= currentYear && d.getMonth() === m;
+                    });
+                    if (monthEx.length > 0) {
+                        globalBal += computeGroupBalance(monthEx);
                     }
-                    const mTotal = Number(ex.monto);
-                    if (ex.pagador === 'Ari') aGlobalPaidUnliq += mTotal;
-                    aGlobalShouldUnliq += (mTotal * (ex.ari_pct / 100));
                 }
-            });
+            }
 
-            const globalBal = aGlobalPaidUnliq - aGlobalShouldUnliq;
             const warningDiv = document.getElementById('global-debt-warning');
-            if (Math.abs(globalBal) > 0.01 && Math.abs(globalBal - bal) > 0.01) {
+            if (Math.abs(globalBal) > 1 && Math.abs(globalBal - bal) > 1) {
                 warningDiv.textContent = globalBal > 0 ? `⚠️ Atención: Contando meses anteriores, Gi debe a Ari en total ${formatDisplayCurrency(globalBal)}` : `⚠️ Atención: Contando meses anteriores, Ari debe a Gi en total ${formatDisplayCurrency(Math.abs(globalBal))}`;
                 warningDiv.style.display = 'block';
-            } else { warningDiv.style.display = 'none'; }
+            } else {
+                warningDiv.style.display = 'none';
+            }
 
             return bal;
         };
@@ -1049,8 +1125,6 @@
                     else { giCash += montoTotal; ariCash -= montoTotal; }
                 } else {
                     if (ex.pagador === 'Ari') ariCash += montoTotal; else giCash += montoTotal;
-                }
-                if (!ex.categoria.includes('Liquidación')) {
                     ariNet += (montoTotal * (ex.ari_pct / 100));
                     giNet += montoTotal - (montoTotal * (ex.ari_pct / 100));
                 }
