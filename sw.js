@@ -1,11 +1,10 @@
-const CACHE_NAME = 'gastos-priel-v2.4';
+const CACHE_NAME = 'gastos-priel-v2.6';
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    // Borra las cachés antiguas cuando se activa una nueva versión
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
@@ -21,7 +20,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', function(event) {
-    // Intenta buscar en red primero, si falla (sin internet), busca en caché
     event.respondWith(fetch(event.request).catch(function() {
         return caches.match(event.request);
     }));
