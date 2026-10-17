@@ -17,7 +17,18 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+      const APP_VERSION = '2.8';
       let swRegistration = null;
+
+      // Limpieza activa de cachés viejas desde el cliente
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => {
+            if (name !== `gastos-priel-v${APP_VERSION}`) caches.delete(name);
+          });
+        });
+      }
+
       if ('serviceWorker' in navigator) {
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -25,11 +36,11 @@
             refreshing = true;
             const b = document.getElementById('update-banner');
             if (b) b.style.display = 'flex';
-            setTimeout(() => { window.location.reload(); }, 1200);
+            setTimeout(() => { window.location.reload(); }, 1000);
           }
         });
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js?v=2.7', { updateViaCache: 'none' })
+          navigator.serviceWorker.register(`sw.js?v=${APP_VERSION}`, { updateViaCache: 'none' })
           .then(function(registration) {
             swRegistration = registration;
             registration.update();
@@ -39,13 +50,18 @@
           }).catch(err => console.log('Fallo SW:', err));
         });
       }
-      function checkManualUpdate() {
-        if (swRegistration) {
-          showToast("Buscando actualizaciones...", "var(--primary)");
-          swRegistration.update().then(() => {
-            setTimeout(() => showToast("Última versión instalada (v2.7)"), 1000);
-          });
-        } else { window.location.reload(); }
+
+      async function checkManualUpdate() {
+        showToast("Limpiando caché y actualizando...", "var(--primary)");
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+        setTimeout(() => { window.location.reload(true); }, 800);
       }
     </script>
     <style>
@@ -148,7 +164,7 @@
         <span>🔄 Nueva versión detectada. Actualizando aplicación...</span>
     </div>
 
-    <div class="version-badge" onclick="checkManualUpdate()" title="Tocar para buscar actualizaciones">v2.7 🔄</div>
+    <div class="version-badge" onclick="checkManualUpdate()" title="Tocar para forzar actualización">v2.8 🔄</div>
 
     <div id="toast"></div>
 
@@ -469,9 +485,15 @@
             const password = document.getElementById('password').value;
             const btn = document.getElementById('btn-login');
             btn.textContent = 'Ingresando...'; btn.disabled = true;
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) { 
-                document.getElementById('login-error').textContent = "Error: " + error.message; 
+            try {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) { 
+                    document.getElementById('login-error').textContent = "Error: " + error.message; 
+                    document.getElementById('login-error').style.display = 'block';
+                    btn.textContent = 'Ingresar'; btn.disabled = false;
+                }
+            } catch (e) {
+                document.getElementById('login-error').textContent = "Error de conexión con Supabase. Revisá si el proyecto está pausado.";
                 document.getElementById('login-error').style.display = 'block';
                 btn.textContent = 'Ingresar'; btn.disabled = false;
             }
@@ -499,19 +521,21 @@
             document.getElementById('filter-month').value = new Date().getMonth().toString();
             const now = new Date();
             document.getElementById('date').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            await Promise.all([loadConfig(), fetchExpenses(), fetchShoppingList()]);
+            await Promise.allSettled([loadConfig(), fetchExpenses(), fetchShoppingList()]);
         }
 
         async function fetchShoppingList() {
-            const { data, error } = await supabaseClient
-                .from('lista_compras')
-                .select('*')
-                .order('comprado', { ascending: true })
-                .order('created_at', { ascending: false });
-            if (!error) {
-                shoppingList = data || [];
-                renderShoppingList();
-            }
+            try {
+                const { data, error } = await supabaseClient
+                    .from('lista_compras')
+                    .select('*')
+                    .order('comprado', { ascending: true })
+                    .order('created_at', { ascending: false });
+                if (!error) {
+                    shoppingList = data || [];
+                    renderShoppingList();
+                }
+            } catch (e) { console.error("Error cargando lista_compras:", e); }
         }
 
         function renderShoppingList() {
@@ -545,12 +569,14 @@
             if (!nombre) return;
             const btn = document.getElementById('shopping-submit-btn');
             btn.disabled = true;
-            const { error } = await supabaseClient.from('lista_compras').insert([{ nombre, comprado: false }]);
-            if (!error) {
-                input.value = '';
-                showToast("Ítem agregado");
-                await fetchShoppingList();
-            } else { showToast("Error al agregar ítem", 'var(--danger)'); }
+            try {
+                const { error } = await supabaseClient.from('lista_compras').insert([{ nombre, comprado: false }]);
+                if (!error) {
+                    input.value = '';
+                    showToast("Ítem agregado");
+                    await fetchShoppingList();
+                } else { showToast("Error al agregar ítem", 'var(--danger)'); }
+            } catch (err) { showToast("Error de red con Supabase", 'var(--danger)'); }
             btn.disabled = false;
         };
 
@@ -609,19 +635,26 @@
         }
 
         async function loadConfig() {
-            const { data } = await supabaseClient.from('configuracion').select('*').eq('id', 1).single();
-            if (data) { 
-                defaultAriPct = parseFloat(data.porcentaje_ari); 
-                document.getElementById('default-ari-pct').value = defaultAriPct; 
-                if (data.categorias) availableCategories = data.categorias;
+            try {
+                const { data, error } = await supabaseClient.from('configuracion').select('*').eq('id', 1).single();
+                if (!error && data) { 
+                    defaultAriPct = parseFloat(data.porcentaje_ari); 
+                    document.getElementById('default-ari-pct').value = defaultAriPct; 
+                    if (data.categorias) availableCategories = data.categorias;
+                }
+            } catch (e) {
+                console.error("Error de red en configuracion:", e);
+                showToast("Sin conexión a Supabase (revisar servidor)", "var(--danger)");
             }
             if (!availableCategories.includes("Liquidación")) availableCategories.push("Liquidación");
             renderCategoryPills('new');
         }
 
         async function fetchExpenses() {
-            const { data } = await supabaseClient.from('gastos').select('*').order('created_at', { ascending: false });
-            expenses = data || [];
+            try {
+                const { data, error } = await supabaseClient.from('gastos').select('*').order('created_at', { ascending: false });
+                if (!error) expenses = data || [];
+            } catch (e) { console.error("Error cargando gastos:", e); }
             applyFilters();
             if (document.getElementById('view-estadisticas').classList.contains('active')) renderStatsChart();
         }
