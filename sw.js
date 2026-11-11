@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-priel-v2.10';
+const CACHE_NAME = 'gastos-priel-v2.11';
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
