@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-      const APP_VERSION = '2.9';
+      const APP_VERSION = '2.10';
       let swRegistration = null;
 
       if ('caches' in window) {
@@ -154,6 +154,19 @@
         .shopping-text { font-size: 1.05em; font-weight: 500; cursor: pointer; word-break: break-word; }
         .shopping-text.completed { text-decoration: line-through; color: var(--text-muted); }
         .shopping-actions { display: flex; gap: 4px; }
+        .shopping-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .shopping-meta { font-size: 0.75em; color: var(--text-muted); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+        .who-chip { font-weight: 700; padding: 1px 8px; border-radius: 10px; font-size: 0.95em; }
+        .who-chip.Ari { background: #e0e7ff; color: #4f46e5; }
+        .who-chip.Gi { background: #fce7f3; color: #ec4899; }
+        .age-chip { font-weight: 700; padding: 1px 8px; border-radius: 10px; font-size: 0.95em; }
+        .age-chip.fresh { background: #d1fae5; color: #047857; }
+        .age-chip.old { background: #f3f4f6; color: var(--text-muted); border: 1px solid var(--border-color); }
+        .shopping-item.done { background: #fafafa; }
+        .shopping-group-title { display: flex; justify-content: space-between; align-items: center; font-size: 0.75em; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--text-muted); margin: 18px 0 4px; }
+        .shopping-group-title button { width: auto; padding: 4px 10px; font-size: 1em; text-transform: none; letter-spacing: 0; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); }
+        .nav-badge { background: var(--danger); color: #fff; border-radius: 10px; font-size: 0.8em; padding: 0 6px; margin-left: 4px; display: none; }
+        #filter-year { margin-left: 4px; }
 
         @media (max-width: 768px) {
             #main-content { padding: 15px; padding-bottom: 90px; }
@@ -181,7 +194,7 @@
         <span>🔄 Nueva versión detectada. Actualizando aplicación...</span>
     </div>
 
-    <div class="version-badge" onclick="checkManualUpdate()" title="Tocar para forzar actualización">v2.9 🔄</div>
+    <div class="version-badge" onclick="checkManualUpdate()" title="Tocar para forzar actualización">v2.10 🔄</div>
 
     <div id="toast"></div>
 
@@ -212,7 +225,7 @@
             </div>
             <ul class="sidebar-menu">
                 <li id="nav-gastos" class="active" onclick="switchView('gastos')">🏠 Control de Gastos</li>
-                <li id="nav-lista" onclick="switchView('lista')">🛒 Lista de Compras</li>
+                <li id="nav-lista" onclick="switchView('lista')">🛒 Lista de Compras <span class="nav-badge" id="nav-badge-side"></span></li>
                 <li id="nav-estadisticas" onclick="switchView('estadisticas')">📈 Estadísticas</li>
             </ul>
         </nav>
@@ -231,6 +244,7 @@
                         <option value="8">Septiembre</option><option value="9">Octubre</option>
                         <option value="10">Noviembre</option><option value="11">Diciembre</option>
                     </select>
+                    <select id="filter-year" onchange="applyFilters()" aria-label="Año"></select>
                 </div>
                 <span class="user-badge" id="logged-user-display"></span>
                 <button type="button" class="icon-btn" onclick="openSettings()">⚙️</button>
@@ -350,7 +364,7 @@
             </button>
             <button type="button" id="bnav-lista" class="bottom-nav-item" onclick="switchView('lista')">
                 <span class="nav-icon">🛒</span>
-                <span>Lista</span>
+                <span>Lista <span class="nav-badge" id="nav-badge-bottom"></span></span>
             </button>
             <button type="button" id="bnav-estadisticas" class="bottom-nav-item" onclick="switchView('estadisticas')">
                 <span class="nav-icon">📈</span>
@@ -445,6 +459,25 @@
         let statsBarChartInstance = null;
         let categoryChartInstance = null;
 
+        // Escapa texto del usuario antes de insertarlo con innerHTML
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        function timeAgo(iso) {
+            const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+            if (m < 1) return 'recién';
+            if (m < 60) return `hace ${m} min`;
+            const h = Math.floor(m / 60);
+            if (h < 24) return `hace ${h} h`;
+            const d = Math.floor(h / 24);
+            if (d === 1) return 'ayer';
+            if (d < 30) return `hace ${d} días`;
+            return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        function fullDate(iso) {
+            return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+        const FRESH_MS = 24 * 3600 * 1000; // un ítem tildado hace menos de 24 h se marca "reciente"
+
         function formatCurrency(input) {
             let value = input.value.replace(/[^0-9,]/g, '');
             if (!value) { input.value = ''; return; }
@@ -510,14 +543,23 @@
             if (view === 'estadisticas') renderStatsChart();
         }
 
+        let appUserId = null;
         supabaseClient.auth.onAuthStateChange((event, session) => {
             if (session) {
+                // Evita recargar todo (y mostrar la pantalla de carga) en cada refresco de token
+                if (appUserId === session.user.id) return;
+                appUserId = session.user.id;
                 const email = session.user.email.toLowerCase();
                 currentUserAlias = (email.includes('pablo') || email.includes('ari') || email.includes('bianchino')) ? 'Ari' : 'Gi';
                 document.getElementById('logged-user-display').textContent = session.user.email;
                 document.getElementById('payer').value = currentUserAlias;
                 showApp();
-            } else { showLogin(); }
+            } else { appUserId = null; showLogin(); }
+        });
+
+        // Refresca al volver a la app, así se ve lo que cargó la otra persona
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && appUserId) { fetchExpenses(); fetchShoppingList(); }
         });
 
         window.ejecutarLogin = async () => {
@@ -578,28 +620,79 @@
             } catch (e) { console.error("Error cargando lista_compras:", e); }
         }
 
+        // Fecha de última modificación de un ítem (si la columna updated_at aún no existe, usa created_at)
+        const itemUpdatedAt = (it) => it.updated_at || it.created_at;
+
+        // Inserta/actualiza con los campos de auditoría; si la tabla todavía no tiene las columnas nuevas,
+        // reintenta sin ellas para que la lista siga funcionando.
+        async function shoppingWrite(buildQuery, extra, plain) {
+            let res = await buildQuery({ ...plain, ...extra });
+            if (res.error && /creado_por|modificado_por|updated_at/.test(res.error.message || '')) res = await buildQuery(plain);
+            return res;
+        }
+
         function renderShoppingList() {
             const container = document.getElementById('shopping-list-container');
-            container.innerHTML = '';
+            const pending = shoppingList.filter(i => !i.comprado)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const done = shoppingList.filter(i => i.comprado)
+                .sort((a, b) => new Date(itemUpdatedAt(b)) - new Date(itemUpdatedAt(a)));
+
+            // Contador de pendientes en el menú
+            ['nav-badge-side', 'nav-badge-bottom'].forEach(id => {
+                const b = document.getElementById(id);
+                b.textContent = pending.length;
+                b.style.display = pending.length ? 'inline-block' : 'none';
+            });
+
             if (shoppingList.length === 0) {
                 container.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 20px 0;">No hay productos en la lista.</p>`;
                 return;
             }
-            shoppingList.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'shopping-item';
-                div.innerHTML = `
+
+            const row = (item) => {
+                const chip = (who) => who ? `<span class="who-chip ${esc(who)}">${esc(who)}</span>` : '';
+                let meta;
+                if (item.comprado) {
+                    const when = itemUpdatedAt(item);
+                    const fresh = Date.now() - new Date(when).getTime() < FRESH_MS;
+                    const age = fresh ? '<span class="age-chip fresh">reciente</span>' : '<span class="age-chip old">anterior</span>';
+                    meta = `✓ Marcó ${chip(item.modificado_por || item.creado_por)} <span title="${esc(fullDate(when))}">${esc(timeAgo(when))} · ${esc(fullDate(when))}</span> ${age}`;
+                } else {
+                    meta = `Agregó ${chip(item.creado_por)} <span title="${esc(fullDate(item.created_at))}">${esc(timeAgo(item.created_at))}</span>`;
+                    if (item.updated_at && new Date(item.updated_at) - new Date(item.created_at) > 60000) {
+                        meta += ` · editado ${esc(timeAgo(item.updated_at))}${item.modificado_por ? ' por ' + chip(item.modificado_por) : ''}`;
+                    }
+                }
+                return `
+                <div class="shopping-item ${item.comprado ? 'done' : ''}">
                     <div class="shopping-item-left">
-                        <input type="checkbox" class="shopping-checkbox" ${item.comprado ? 'checked' : ''} onchange="toggleShoppingItem('${item.id}', this.checked)">
-                        <span class="shopping-text ${item.comprado ? 'completed' : ''}" onclick="openEditShoppingModal('${item.id}')">${item.nombre}</span>
+                        <input type="checkbox" class="shopping-checkbox" ${item.comprado ? 'checked' : ''} onchange="toggleShoppingItem('${esc(item.id)}', this.checked)">
+                        <div class="shopping-main">
+                            <span class="shopping-text ${item.comprado ? 'completed' : ''}" onclick="openEditShoppingModal('${esc(item.id)}')">${esc(item.nombre)}</span>
+                            <span class="shopping-meta">${meta}</span>
+                        </div>
                     </div>
                     <div class="shopping-actions">
-                        <button type="button" class="action-btn edit-icon" onclick="openEditShoppingModal('${item.id}')" title="Editar">✏️</button>
-                        <button type="button" class="action-btn delete" onclick="deleteShoppingItem('${item.id}')" title="Borrar">🗑️</button>
+                        <button type="button" class="action-btn edit-icon" onclick="openEditShoppingModal('${esc(item.id)}')" title="Editar">✏️</button>
+                        <button type="button" class="action-btn delete" onclick="deleteShoppingItem('${esc(item.id)}')" title="Borrar">🗑️</button>
                     </div>
-                `;
-                container.appendChild(div);
-            });
+                </div>`;
+            };
+
+            container.innerHTML =
+                `<div class="shopping-group-title"><span>Por comprar (${pending.length})</span></div>` +
+                (pending.length ? pending.map(row).join('') : `<p style="text-align:center; color:var(--text-muted); padding:12px 0;">Nada pendiente 🎉</p>`) +
+                (done.length ? `<div class="shopping-group-title"><span>Comprados (${done.length})</span><button type="button" onclick="clearDoneItems()">Limpiar comprados</button></div>` + done.map(row).join('') : '');
+        }
+
+        async function clearDoneItems() {
+            const n = shoppingList.filter(i => i.comprado).length;
+            if (!n || !confirm(`¿Quitar los ${n} ítems ya comprados de la lista?`)) return;
+            const { error } = await supabaseClient.from('lista_compras').delete().eq('comprado', true);
+            if (error) { showToast("Error al limpiar la lista", 'var(--danger)'); return; }
+            showToast("Lista limpiada");
+            fetchShoppingList();
         }
 
         document.getElementById('shopping-form').onsubmit = async (e) => {
@@ -610,7 +703,10 @@
             const btn = document.getElementById('shopping-submit-btn');
             btn.disabled = true;
             try {
-                const { error } = await supabaseClient.from('lista_compras').insert([{ nombre, comprado: false }]);
+                const { error } = await shoppingWrite(
+                    (row) => supabaseClient.from('lista_compras').insert([row]),
+                    { creado_por: currentUserAlias, modificado_por: currentUserAlias },
+                    { nombre, comprado: false });
                 if (!error) {
                     input.value = '';
                     showToast("Ítem agregado");
@@ -621,7 +717,11 @@
         };
 
         async function toggleShoppingItem(id, comprado) {
-            await supabaseClient.from('lista_compras').update({ comprado }).eq('id', id);
+            const { error } = await shoppingWrite(
+                (row) => supabaseClient.from('lista_compras').update(row).eq('id', id),
+                { modificado_por: currentUserAlias, updated_at: new Date().toISOString() },
+                { comprado });
+            if (error) showToast("Error al actualizar el ítem", 'var(--danger)');
             fetchShoppingList();
         }
 
@@ -644,7 +744,10 @@
             if (!nombre) return;
             const btn = document.getElementById('edit-shopping-submit-btn');
             btn.disabled = true;
-            const { error } = await supabaseClient.from('lista_compras').update({ nombre }).eq('id', id);
+            const { error } = await shoppingWrite(
+                (row) => supabaseClient.from('lista_compras').update(row).eq('id', id),
+                { modificado_por: currentUserAlias, updated_at: new Date().toISOString() },
+                { nombre });
             if (!error) {
                 showToast("Ítem actualizado");
                 closeEditShoppingModal();
@@ -670,8 +773,24 @@
 
         function getFilteredExpenses() {
             const month = document.getElementById('filter-month').value;
-            if (month === 'todos') return expenses;
-            return expenses.filter(ex => new Date(ex.created_at).getMonth().toString() === month);
+            const year = document.getElementById('filter-year').value;
+            return expenses.filter(ex => {
+                const d = new Date(ex.created_at);
+                return (year === 'todos' || d.getFullYear().toString() === year) &&
+                       (month === 'todos' || d.getMonth().toString() === month);
+            });
+        }
+
+        // Llena el selector de año con los años que tienen gastos (el mes solo no alcanza: noviembre 2026 ≠ noviembre 2025)
+        function populateYears() {
+            const sel = document.getElementById('filter-year');
+            const current = new Date().getFullYear();
+            const years = new Set([current]);
+            expenses.forEach(ex => years.add(new Date(ex.created_at).getFullYear()));
+            const prev = sel.value;
+            sel.innerHTML = '<option value="todos">Todos</option>' +
+                [...years].sort((a, b) => b - a).map(y => `<option value="${y}">${y}</option>`).join('');
+            sel.value = (prev && (prev === 'todos' || years.has(Number(prev)))) ? prev : String(current);
         }
 
         async function loadConfig() {
@@ -694,6 +813,7 @@
                 const { data, error } = await supabaseClient.from('gastos').select('*').order('created_at', { ascending: false });
                 if (!error) expenses = data || [];
             } catch (e) { console.error("Error cargando gastos:", e); }
+            populateYears();
             applyFilters();
             if (document.getElementById('view-estadisticas').classList.contains('active')) renderStatsChart();
         }
@@ -712,7 +832,9 @@
             });
         }
 
+        const categoryTouched = { new: false, edit: false };
         function toggleCategory(cat, context) {
+            categoryTouched[context] = true;
             let selectedArray = context === 'new' ? selectedCategoriesNew : selectedCategoriesEdit;
             if (selectedArray.includes(cat)) selectedArray = selectedArray.filter(c => c !== cat);
             else selectedArray.push(cat);
@@ -722,12 +844,17 @@
         }
 
         function smartSuggest(val, context) {
+            // Si ya elegiste categorías a mano, no se las pisa mientras escribís
+            if (categoryTouched[context]) return;
             const v = val.toLowerCase();
+            // Palabra completa: evita que "media" dispare "dia" o "gasto" dispare "gas"
+            const has = (...w) => w.some(x => new RegExp('(^|[^a-záéíóúñ])' + x + '([^a-záéíóúñ]|$)').test(v));
             let arr = [];
-            if (v.includes('super') || v.includes('coto') || v.includes('dia')) arr.push('Supermercado');
-            if (v.includes('luz') || v.includes('agua') || v.includes('gas') || v.includes('internet')) arr.push('Servicios');
-            if (v.includes('pizza') || v.includes('cine') || v.includes('cerveza')) arr.push('Salidas');
-            if (v.includes('nafta') || v.includes('uber') || v.includes('peaje')) arr.push('Auto/Transporte');
+            if (has('super', 'supermercado', 'coto', 'dia', 'carrefour', 'jumbo', 'disco')) arr.push('Supermercado');
+            if (has('luz', 'agua', 'gas', 'internet', 'wifi', 'cable', 'expensas')) arr.push('Servicios');
+            if (has('pizza', 'cine', 'cerveza', 'restaurante', 'birra', 'helado')) arr.push('Salidas');
+            if (has('nafta', 'uber', 'peaje', 'sube', 'estacionamiento')) arr.push('Auto/Transporte');
+            arr = arr.filter(c => availableCategories.includes(c));
             if (context === 'new') selectedCategoriesNew = arr;
             else selectedCategoriesEdit = arr;
             renderCategoryPills(context);
@@ -740,7 +867,12 @@
                 if (cat === "Liquidación") return;
                 const div = document.createElement('div');
                 div.className = 'setting-item';
-                div.innerHTML = `<span>${cat}</span><button type="button" onclick="removeCategory('${cat}')" style="width:auto; padding:4px 10px; background:var(--danger); font-size:0.8em;">Borrar</button>`;
+                div.innerHTML = `<span>${esc(cat)}</span>`;
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button'; delBtn.textContent = 'Borrar';
+                delBtn.style.cssText = 'width:auto; padding:4px 10px; background:var(--danger); font-size:0.8em;';
+                delBtn.onclick = () => removeCategory(cat);
+                div.appendChild(delBtn);
                 container.appendChild(div);
             });
         }
@@ -797,9 +929,13 @@
                 liquidado: isLiq ? true : false,
                 created_at: dateObj.toISOString()
             };
+            if (!(data.monto > 0)) { showToast("El monto debe ser mayor a 0", 'var(--danger)'); return; }
+            if (!data.descripcion.trim()) { showToast("Falta la descripción", 'var(--danger)'); return; }
             btn.disabled = true;
-            await supabaseClient.from('gastos').insert([data]);
+            const { error: insErr } = await supabaseClient.from('gastos').insert([data]);
+            if (insErr) { console.error(insErr); showToast("Error al guardar el gasto", 'var(--danger)'); btn.disabled = false; return; }
             showToast("Gasto guardado");
+            categoryTouched.new = false;
             document.getElementById('expense-form').reset();
             document.getElementById('payer').value = currentUserAlias;
             const now = new Date();
@@ -830,8 +966,10 @@
                 liquidado: isLiq ? true : ex.liquidado,
                 created_at: dateObj.toISOString()
             };
+            if (!(data.monto > 0)) { showToast("El monto debe ser mayor a 0", 'var(--danger)'); return; }
             btn.disabled = true;
-            await supabaseClient.from('gastos').update(data).eq('id', id);
+            const { error: updErr } = await supabaseClient.from('gastos').update(data).eq('id', id);
+            if (updErr) { console.error(updErr); showToast("Error al actualizar el gasto", 'var(--danger)'); btn.disabled = false; return; }
             showToast("Gasto actualizado");
             closeEditModal();
             await fetchExpenses();
@@ -847,6 +985,7 @@
             const d = new Date(ex.created_at);
             document.getElementById('edit-date').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             selectedCategoriesEdit = ex.categoria.split(', ');
+            categoryTouched.edit = true; // al editar se respetan las categorías ya guardadas
             renderCategoryPills('edit');
             document.getElementById('edit-modal').style.display = 'block';
         };
@@ -855,7 +994,8 @@
 
         const deleteExpense = async (id) => {
             if (confirm("¿Borrar gasto permanentemente?")) {
-                await supabaseClient.from('gastos').delete().eq('id', id);
+                const { error } = await supabaseClient.from('gastos').delete().eq('id', id);
+                if (error) { showToast("Error al borrar el gasto", 'var(--danger)'); return; }
                 showToast("Gasto eliminado", 'var(--danger)');
                 fetchExpenses();
             }
@@ -872,7 +1012,7 @@
                     if (error) { showToast("Error al liquidar", 'var(--danger)'); return; }
                 }
                 let payer = bal > 0 ? 'Gi' : 'Ari';
-                let amount = Math.abs(bal);
+                let amount = Math.round(Math.abs(bal) * 100) / 100; // evita ruido de decimales (1234.5600000001)
                 let ari_pct = bal > 0 ? 0 : 100; 
                 let settleDate = new Date();
                 if (filtered.length > 0) {
@@ -889,7 +1029,8 @@
                     liquidado: true,
                     created_at: settleDate.toISOString()
                 };
-                await supabaseClient.from('gastos').insert([settlementData]);
+                const { error: settleErr } = await supabaseClient.from('gastos').insert([settlementData]);
+                if (settleErr) { showToast("Error al registrar el pago de liquidación", 'var(--danger)'); fetchExpenses(); return; }
                 showToast("Deudas liquidadas y pago registrado");
                 fetchExpenses();
             }
@@ -919,7 +1060,7 @@
                 } else if (ex.pagador === person) {
                     const tr = document.createElement('tr');
                     tr.style.borderBottom = "1px solid var(--border-color)";
-                    tr.innerHTML = `<td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td><td style="font-weight:600; padding: 8px;">${ex.descripcion}</td><td style="font-weight:700; text-align:right; padding: 8px 0;">${formatDisplayCurrency(montoTotal)}</td>`;
+                    tr.innerHTML = `<td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td><td style="font-weight:600; padding: 8px;">${esc(ex.descripcion)}</td><td style="font-weight:700; text-align:right; padding: 8px 0;">${formatDisplayCurrency(montoTotal)}</td>`;
                     list.appendChild(tr);
                     total += montoTotal;
                 }
@@ -940,7 +1081,7 @@
                         const date = new Date(ex.created_at).toLocaleDateString('es-AR', {day:'2-digit', month:'short'});
                         const tr = document.createElement('tr');
                         tr.style.borderBottom = "1px solid var(--border-color)";
-                        tr.innerHTML = `<td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td><td style="font-weight:600; padding: 8px;">${ex.descripcion}</td><td style="font-weight:700; text-align:right; padding: 8px 0;">${formatDisplayCurrency(netAmount)}</td>`;
+                        tr.innerHTML = `<td style="font-size:0.8em; color:var(--text-muted); padding: 8px 0;">${date}</td><td style="font-weight:600; padding: 8px;">${esc(ex.descripcion)}</td><td style="font-weight:700; text-align:right; padding: 8px 0;">${formatDisplayCurrency(netAmount)}</td>`;
                         list.appendChild(tr);
                         total += netAmount;
                     }
@@ -971,9 +1112,9 @@
                     const color = currentUserAlias === 'Ari' ? 'var(--danger)' : 'var(--success)';
                     debtText = `<span class="debt-text" style="color: ${color};">Ari debe a Gi: ${formatDisplayCurrency(ariS)}</span>`;
                 }
-                const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${c}</span>`).join('');
+                const catBadges = ex.categoria.split(', ').map(c => `<span class="badge-cat">${esc(c)}</span>`).join('');
                 const isLiquidacion = ex.categoria.includes('Liquidación');
-                let displayDesc = ex.descripcion;
+                let displayDesc = esc(ex.descripcion);
                 let payerBadge = '';
                 if (isLiquidacion) {
                     const receiver = ex.pagador === 'Ari' ? 'Gi' : 'Ari';
@@ -1083,21 +1224,20 @@
             }
 
             // Deuda global histórica hasta el mes seleccionado (evaluada mes por mes)
-            const currentYear = new Date().getFullYear();
+            const selectedYearValue = document.getElementById('filter-year').value;
             let globalBal = 0;
-            if (selectedMonthValue === 'todos') {
+            if (selectedMonthValue === 'todos' || selectedYearValue === 'todos') {
                 globalBal = bal;
             } else {
-                const maxM = Number(selectedMonthValue);
-                for (let m = 0; m <= maxM; m++) {
-                    const monthEx = expenses.filter(ex => {
-                        const d = new Date(ex.created_at);
-                        return d.getFullYear() <= currentYear && d.getMonth() === m;
-                    });
-                    if (monthEx.length > 0) {
-                        globalBal += computeGroupBalance(monthEx);
-                    }
-                }
+                // Suma el saldo de cada mes (agrupado por año+mes) hasta el mes seleccionado, incluyendo años anteriores
+                const limit = Number(selectedYearValue) * 12 + Number(selectedMonthValue);
+                const groups = {};
+                expenses.forEach(ex => {
+                    const d = new Date(ex.created_at);
+                    const key = d.getFullYear() * 12 + d.getMonth();
+                    if (key <= limit) (groups[key] = groups[key] || []).push(ex);
+                });
+                Object.values(groups).forEach(g => { globalBal += computeGroupBalance(g); });
             }
 
             const warningDiv = document.getElementById('global-debt-warning');
@@ -1157,8 +1297,11 @@
             const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
             const ariData = new Array(12).fill(0), giData = new Array(12).fill(0);
 
+            // El histórico mensual muestra un solo año (el elegido; si es "Todos", el actual)
+            const yearSel = document.getElementById('filter-year').value;
+            const statsYear = yearSel === 'todos' ? new Date().getFullYear() : Number(yearSel);
             expenses.forEach(ex => {
-                if (!ex.categoria.includes('Liquidación')) {
+                if (!ex.categoria.includes('Liquidación') && new Date(ex.created_at).getFullYear() === statsYear) {
                     const m = new Date(ex.created_at).getMonth();
                     const montoTotal = Number(ex.monto);
                     const ariNet = montoTotal * (ex.ari_pct / 100);
@@ -1196,6 +1339,7 @@
 
         const saveDefaultPct = async () => {
             const pct = parseFloat(document.getElementById('default-ari-pct').value);
+            if (!(pct >= 0 && pct <= 100)) { showToast("El porcentaje debe estar entre 0 y 100", 'var(--danger)'); return; }
             const btn = document.getElementById('btn-save-config');
             btn.textContent = 'Guardando...'; btn.disabled = true;
             const { error } = await supabaseClient.from('configuracion').upsert({ id: 1, porcentaje_ari: pct, categorias: availableCategories });
