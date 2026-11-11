@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-      const APP_VERSION = '2.11';
+      const APP_VERSION = '2.12';
       let swRegistration = null;
 
       if ('caches' in window) {
@@ -179,6 +179,18 @@
         .total-combined { font-size:14px; font-weight:800; margin:6px 0 12px; padding:10px; background:var(--teal-50); color:var(--teal-700); border-radius:var(--r-md); }
         .chart-container { height:200px; display:flex; justify-content:center; margin-bottom:8px; cursor:pointer; }
         .balance-grid { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px; }
+        /* Resúmenes compactos: texto a la izquierda, gráfico chico a la derecha */
+        .stat-card { padding:12px 14px; }
+        .stat-card .section-label { margin-bottom:8px; }
+        .stat-body { display:grid; grid-template-columns:1fr 112px; gap:10px; align-items:center; }
+        .stat-info .totals { flex-direction:column; gap:6px; margin-bottom:6px; }
+        .stat-info .totals span { padding:7px 10px; font-size:12px; text-align:left; }
+        .stat-info .total-combined { margin:0; padding:7px 10px; font-size:12px; text-align:left; }
+        .stat-body .chart-container { height:112px; margin:0; }
+        .dot-ari::before, .dot-gi::before { content:''; display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; }
+        .dot-ari::before { background:#007b8f; } .dot-gi::before { background:#d49a3a; }
+        .balance-card { padding:14px 16px; }
+        .balance-card .balance { font-size:24px; margin:4px 0 10px; }
         .balance-grid > * { min-width:0; }
         .balance-grid .card { margin:0; }
         .chart-container { position:relative; width:100%; min-width:0; }
@@ -272,6 +284,10 @@
             .filter-group { order:5; width:100%; margin:0; }
             .filter-group select { flex:1; }
             .header .user-badge { margin-left:auto; }
+            .stat-body { grid-template-columns:1fr 92px; gap:8px; }
+            .stat-body .chart-container { height:92px; }
+            .stat-info .totals span, .stat-info .total-combined { padding:6px 8px; font-size:12px; }
+            .dot-ari::before, .dot-gi::before { width:8px; height:8px; margin-right:5px; }
             .totals { flex-direction:column; }
             .balance { font-size:24px; }
         }
@@ -283,7 +299,7 @@
         <span>🔄 Nueva versión detectada. Actualizando aplicación...</span>
     </div>
 
-    <div class="version-badge" onclick="checkManualUpdate()" title="Tocar para forzar actualización">v2.11 🔄</div>
+    <div class="version-badge" onclick="checkManualUpdate()" title="Tocar para forzar actualización">v2.12 🔄</div>
 
     <div id="toast"></div>
 
@@ -351,29 +367,37 @@
                     <button type="button" class="btn-secondary" onclick="settleUp()">Liquidar cuentas del mes</button>
                 </div>
 
+                <div class="balance-grid two">
+                    <div class="card stat-card">
+                        <div class="section-label">Gasto real neto (sin liquidaciones)</div>
+                        <div class="stat-body">
+                            <div class="stat-info">
+                                <div class="totals">
+                                    <span id="net-ari" class="clickable-total dot-ari" onclick="openBreakdownNet('Ari')">Gasto Neto Ari: $0</span>
+                                    <span id="net-gi" class="clickable-total dot-gi" onclick="openBreakdownNet('Gi')">Gasto Neto Gi: $0</span>
+                                </div>
+                                <div id="net-combined" class="total-combined">Total Gasto Real: $0</div>
+                            </div>
+                            <div class="chart-container"><canvas id="netPieChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="section-label">Flujo de caja (dinero adelantado)</div>
+                        <div class="stat-body">
+                            <div class="stat-info">
+                                <div class="totals">
+                                    <span id="cash-ari" class="clickable-total dot-ari" onclick="openBreakdownCashFlow('Ari')">Adelantó Ari: $0</span>
+                                    <span id="cash-gi" class="clickable-total dot-gi" onclick="openBreakdownCashFlow('Gi')">Adelantó Gi: $0</span>
+                                </div>
+                            </div>
+                            <div class="chart-container"><canvas id="homePieChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card card-flush">
                     <div class="ds-card-head">Historial</div>
                     <div id="expense-list"></div>
-                </div>
-
-                <div class="balance-grid two">
-                    <div class="card" style="text-align:center;">
-                        <div class="section-label" style="margin-bottom:10px;">Gasto real neto (sin liquidaciones)</div>
-                        <div class="totals">
-                            <span id="net-ari" class="clickable-total" onclick="openBreakdownNet('Ari')">Gasto Neto Ari: $0</span>
-                            <span id="net-gi" class="clickable-total" onclick="openBreakdownNet('Gi')">Gasto Neto Gi: $0</span>
-                        </div>
-                        <div id="net-combined" class="total-combined">Total Gasto Real: $0</div>
-                        <div class="chart-container"><canvas id="netPieChart"></canvas></div>
-                    </div>
-                    <div class="card" style="text-align:center;">
-                        <div class="section-label" style="margin-bottom:10px;">Flujo de caja (dinero adelantado)</div>
-                        <div class="totals">
-                            <span id="cash-ari" class="clickable-total" onclick="openBreakdownCashFlow('Ari')">Adelantó Ari: $0</span>
-                            <span id="cash-gi" class="clickable-total" onclick="openBreakdownCashFlow('Gi')">Adelantó Gi: $0</span>
-                        </div>
-                        <div class="chart-container"><canvas id="homePieChart"></canvas></div>
-                    </div>
                 </div>
 
                 <button type="button" class="fab" id="fab-new-expense" onclick="openExpenseModal()" aria-label="Nuevo gasto" title="Nuevo gasto">+</button>
@@ -585,7 +609,7 @@
         }
 
         function formatDisplayCurrency(num) {
-            return '$ ' + Number(num).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            return '$ ' + Number(num).toLocaleString('es-AR', { minimumFractionDigits: Number.isInteger(Number(num)) ? 0 : 2, maximumFractionDigits: 2 });
         }
 
         function toggleSidebar() {
@@ -1376,7 +1400,7 @@
             homePieChartInstance = new Chart(ctxHome, {
                 type: 'doughnut',
                 data: { labels: [`Ari (${pAriCash}%)`, `Gi (${pGiCash}%)`], datasets: [{ data: [Math.max(0, ariCash), Math.max(0, giCash)], backgroundColor: ['#007b8f', '#d49a3a'] }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } }, onClick: (e, elements) => { if (elements.length > 0) openBreakdownCashFlow(elements[0].index === 0 ? 'Ari' : 'Gi'); } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, onClick: (e, elements) => { if (elements.length > 0) openBreakdownCashFlow(elements[0].index === 0 ? 'Ari' : 'Gi'); } }
             });
 
             const combinedNet = ariNet + giNet;
@@ -1386,7 +1410,7 @@
             netPieChartInstance = new Chart(ctxNet, {
                 type: 'doughnut',
                 data: { labels: [`Ari (${pAriNet}%)`, `Gi (${pGiNet}%)`], datasets: [{ data: [ariNet, giNet], backgroundColor: ['#007b8f', '#d49a3a'] }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } }, onClick: (e, elements) => { if (elements.length > 0) openBreakdownNet(elements[0].index === 0 ? 'Ari' : 'Gi'); } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, onClick: (e, elements) => { if (elements.length > 0) openBreakdownNet(elements[0].index === 0 ? 'Ari' : 'Gi'); } }
             });
         };
 
